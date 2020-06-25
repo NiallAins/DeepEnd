@@ -92,7 +92,12 @@ function start(): void {
 	wave = World.area.addBackground('bgWave', false, 1, 1, {x: 0, y: seaLevel - 17}, {x: true, y: false});
 	World.area.toggleLight();
 	World.area.view.z = 1;
-	// Debug.toggle();
+	Debug.toggle();
+	Debug.defaultOptions.view = false;
+	Debug.defaultOptions.input = false;
+	Debug.log('WASD to move', true);
+	Debug.log('Space when next to blocks', true);
+	Debug.log('Swim to bottom left till you see fish, press M, then Arrow Keys and Space', true);
 
 	// Level layout
 	let gridWidth = 60,

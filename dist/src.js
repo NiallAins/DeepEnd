@@ -3973,7 +3973,7 @@ define("HUD", ["require", "exports", "Bunas", "main"], function (require, export
     var default_4 = (function () {
         function default_4() {
             this.air = 1;
-            this.airDec = 0.001;
+            this.airDec = 0.0005;
             this.battery = 1;
             this.batteryIcon = Bunas_5.Engine.getSprite('icon_battery');
         }
@@ -4064,6 +4064,12 @@ define("main", ["require", "exports", "Bunas", "layout", "Camera", "Guy", "Fish"
         wave = Bunas_6.World.area.addBackground('bgWave', false, 1, 1, { x: 0, y: exports.seaLevel - 17 }, { x: true, y: false });
         Bunas_6.World.area.toggleLight();
         Bunas_6.World.area.view.z = 1;
+        Bunas_6.Debug.toggle();
+        Bunas_6.Debug.defaultOptions.view = false;
+        Bunas_6.Debug.defaultOptions.input = false;
+        Bunas_6.Debug.log('WASD to move', true);
+        Bunas_6.Debug.log('Space when next to blocks', true);
+        Bunas_6.Debug.log('Swim to bottom left till you see fish, press M, then Arrow Keys and Space', true);
         var gridWidth = 60, gridHeight = 100, gridCellWidth = 96;
         layout_1.default(gridWidth, gridHeight, gridCellWidth, Math.ceil(exports.seaLevel / gridCellWidth) + 2);
         exports.guy = new Guy_1.default(500, 600);

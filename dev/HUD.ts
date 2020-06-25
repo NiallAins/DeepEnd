@@ -3,7 +3,7 @@ import { camera, seaLevel, guy } from 'main';
 
 export default class {
   public air: number = 1;
-  public airDec: number = 0.001;
+  public airDec: number = 0.0005;
   public battery: number = 1;
   private batteryIcon: HTMLImageElement;
 
