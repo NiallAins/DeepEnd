@@ -3838,7 +3838,7 @@ define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fishes/FishBase"],
             ctx.restore();
         }
     }
-    exports.default = Eel;
+    exports.Eel = Eel;
 });
 define("Fish", ["require", "exports", "Fishes/FishBase", "Fishes/PinkFish", "Fishes/Pirhana", "Fishes/Eel"], function (require, exports, FishBase_4, PinkFish_1, Pirhana_1, Eel_1) {
     "use strict";
