@@ -1,7 +1,5 @@
 import { Engine, World, Input, GameObject } from 'Bunas';
-import { guy } from 'main';
-
-
+import { guy, menu } from 'main';
 
 export default class {
   private _on: boolean = false;
@@ -129,8 +127,8 @@ export default class {
     }
   }
 
-  public step() {
-    if (Input.key.down === 'KeyM') {
+  public step(dt: number) {
+    if (Input.key.down === 'KeyM' && !menu.open) {
       this.on = !this.on;
     }
 
@@ -141,7 +139,7 @@ export default class {
         z: 1.5
       };
       if (this.easeVal <= 1) {
-        this.easeVal += 0.05;
+        this.easeVal += 0.05 * dt;
         this.view.x += (this.target.x - this.view.x) * (this.easeVal / 2);
         this.view.y += (this.target.y - this.view.y) * (this.easeVal / 2);
         this.view.z += (this.target.z - this.view.z) * Math.pow(this.easeVal, 2);
@@ -151,7 +149,7 @@ export default class {
       }
     } else if (this.ease === -1) {
       if (this.easeVal >= 0) {
-        this.easeVal -= 0.1;
+        this.easeVal -= 0.1 * dt;
         this.view.x += (this.mainView.x - this.view.x) * ((1 - this.easeVal) / 2);
         this.view.y += (this.mainView.y - this.view.y) * ((1 - this.easeVal) / 2);
         this.view.z += (this.mainView.z - this.view.z) * Math.pow(1 - this.easeVal, 2);
@@ -163,16 +161,16 @@ export default class {
     } else {
       if (this._on) {
         if (Input.isPressed('ArrowUp') && this.dist < Engine.cH / 1.5) {
-          this.dist += 20;
+          this.dist += 20 * dt;
         }
         if (Input.isPressed('ArrowDown') && this.dist > 100) {
-          this.dist -= 20;
+          this.dist -= 20 * dt;
         }
         if (Input.isPressed('ArrowLeft') && this.focus > 0.5) {
-          this.focus -= 0.1;
+          this.focus -= 0.1 * dt;
         }
         if (Input.isPressed('ArrowRight') && this.focus < 4.5) {
-          this.focus += 0.1;
+          this.focus += 0.1 * dt;
         }
         if (this.drawingPhoto) {
           this.takePhoto();
@@ -240,12 +238,6 @@ export default class {
       0, 0,
       this.photoCan.width, this.photoCan.height
     );
-    let image = document.createElement('img');
-    image.src = this.photoCan.toDataURL('image/png');
-    image.style.position = 'fixed';
-    image.style.top = '0px';
-    image.style.left = '0px';
-    document.body.appendChild(image);
-    this.album.push(image);
+    menu.addPhoto(this.photoCan.toDataURL('image/png'));
   }
 }

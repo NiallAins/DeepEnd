@@ -1,23 +1,30 @@
-import { Engine } from 'Bunas';
-import { camera, seaLevel, guy } from 'main';
+import { Engine, Debug } from 'Bunas';
+import { camera, seaLevel, guy, menu } from 'main';
 
 export default class {
   public air: number = 1;
-  public airDec: number = 0.0005;
-  public battery: number = 1;
-  private batteryIcon: HTMLImageElement;
+  public airDec: number = 0;
+  public battery: number = 5;
+  public batteryDec: number = 0;
+  private statsIcon: HTMLImageElement;
 
   constructor() {
-    this.batteryIcon = Engine.getSprite('icon_battery');
+    this.statsIcon = Engine.getSprite('icon_stats');
   }
 
-  public step() {
+  public step(dt: number) {
+    if (menu.open) {
+      return;
+    }
     if (guy.y > seaLevel + 50) {
       if (this.air > 0.01) {
-        this.air -= this.airDec;
+        this.air -= this.airDec * dt;
       }
-    } else if (this.air < 0.24){
-      this.air += 0.01;
+    } else if (this.air < 0.24) {
+      this.air += 0.01 * dt;
+    }
+    if (this.battery > 0) {
+      this.battery -= this.batteryDec * dt;
     }
   }
   
@@ -30,29 +37,28 @@ export default class {
     }
     if (!camera.drawingPhoto) {
       ctx.save();
-        ctx.globalAlpha = 0.4;
+        ctx.translate(20, Engine.cH - 140);
+        ctx.drawImage(this.statsIcon, 0, 0);
+
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 18;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = this.air < 0.20 ? '#e45692' : '#fff';
+        ctx.translate(90, 30);
         ctx.beginPath();
-          ctx.moveTo(60, Engine.cH - 60);
-          ctx.lineTo(60, 60 + ((Engine.cH - 120) * (1 - this.air)));
-          ctx.strokeStyle = this.air < 0.25 ? '#FFF' : '#555';
-          ctx.lineCap = 'round';
-          ctx.lineWidth = 18;
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.floor(200 * this.air), 0);
         ctx.stroke();
-          ctx.strokeStyle = this.air < 0.25 ? '#F6A' : '#AAF';
-          ctx.lineCap = 'round';
-          ctx.lineWidth = 22;
+
+        ctx.setLineDash([30, 10]);
+        ctx.lineCap = 'butt';
+        ctx.strokeStyle = this.battery < 1 ? '#e45692' : '#fff';
+        ctx.translate(20, 45);
+        ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.floor(40 * Math.ceil(this.battery)), 0);
         ctx.stroke();
       ctx.restore();
     }
-
-    // ctx.translate(130, 15);
-    // ctx.rotate(Math.PI / 2);
-    // ctx.drawImage(HUD.batteryIcon, 0, 0, 60, 112, 0, 0, 60, 112);
-    // if (HUD.battery === 1) {
-    // 	ctx.drawImage(HUD.batteryIcon, 60, 92, 46, 20, 7, 85, 46, 20);
-    // } else {
-    // 	let height = (4 - HUD.battery) * 23;
-    // 	ctx.drawImage(HUD.batteryIcon, 60, height, 46, 90 - height, 7, height + 16, 46, 90 - height);
-    // }
   }
 }

@@ -1,13 +1,4 @@
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
+const entryPoint = 'main';
 !function (e) { if ("object" == typeof exports && "undefined" != typeof module)
     module.exports = e();
 else if ("function" == typeof define && define.amd)
@@ -1317,7 +1308,7 @@ else {
                         }
                         for (var d = 0; d < o.length; d++) {
                             var u = o[d].data;
-                            switch ((t.translate(.5, .5), t.lineWidth = 1, t.strokeStyle = "rgba(255,165,0,0.9)", t.setLineDash([1, 2]), u.type)) {
+                            switch (t.translate(.5, .5), t.lineWidth = 1, t.strokeStyle = "rgba(255,165,0,0.9)", t.setLineDash([1, 2]), u.type) {
                                 case "body":
                                     n = u.bounds, t.beginPath(), t.rect(Math.floor(n.min.x - 3), Math.floor(n.min.y - 3), Math.floor(n.max.x - n.min.x + 6), Math.floor(n.max.y - n.min.y + 6)), t.closePath(), t.stroke();
                                     break;
@@ -1413,7 +1404,6 @@ else {
                 }();
             }, { "../body/Composite": 2, "../core/Common": 14, "../core/Events": 16, "../geometry/Bounds": 26, "../geometry/Vector": 28 }] }, {}, [30])(30);
 });
-var entryPoint = 'main';
 var requirejs, require, define;
 !function (global, setTimeout) { function commentReplace(e, t) { return t || ""; } function isFunction(e) { return "[object Function]" === ostring.call(e); } function isArray(e) { return "[object Array]" === ostring.call(e); } function each(e, t) { if (e) {
     var i;
@@ -1565,15 +1555,27 @@ requirejs([entryPoint, 'Bunas'], function (a, b) { if (Bunas.onload)
 define("Bunas", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var GameObject = (function () {
-        function GameObject(x, y, _z, colWidth, clipWidth) {
-            if (_z === void 0) { _z = 0; }
-            if (colWidth === void 0) { colWidth = 0; }
-            if (clipWidth === void 0) { clipWidth = -1; }
+    class Bindable {
+        bindPosition(obj, xOffset = 0, yOffset = 0, angOffset, xCenter = 0, yCenter = 0, matchAng = false) { this.bound = { obj: obj, xOffset: xOffset, yOffset: yOffset }; if (typeof angOffset !== 'undefined') {
+            this.bound.angOffset = angOffset;
+            this.bound.xCenter = xCenter;
+            this.bound.yCenter = yCenter;
+            this.bound.matchAng = matchAng;
+        } }
+        unbindPosition() { this.bound = null; }
+    }
+    exports.Bindable = Bindable;
+    ;
+    class GameObject extends Bindable {
+        constructor(x, y, _z = 0, colWidth = 0, clipWidth = -1) {
+            super();
             this.x = x;
             this.y = y;
             this._z = _z;
+            this.ang = 0;
             this.inView = true;
+            this.pause = false;
+            this.pauseOffScreen = false;
             if (typeof colWidth === 'number') {
                 this.colBox = { x: 0, y: 0, width: colWidth, height: colWidth };
             }
@@ -1593,82 +1595,128 @@ define("Bunas", ["require", "exports"], function (require, exports) {
             }
             World.area.add(this);
         }
-        Object.defineProperty(GameObject.prototype, "z", {
-            get: function () { return this._z; },
-            set: function (newZ) { this._z = newZ; this.area.zSort(this); },
-            enumerable: true,
-            configurable: true
-        });
-        GameObject.prototype.step = function (delta) { };
+        get alive() { return !!this.area; }
+        get z() { return this._z; }
+        set z(newZ) { if (newZ !== this._z) {
+            this._z = newZ;
+            this.area.zSort(this);
+        } }
+        step(delta) { }
         ;
-        GameObject.prototype.draw = function (ctx, delta) { };
+        draw(ctx, delta) { }
         ;
-        GameObject.prototype.getCollisions = function (objects, onlyInView) {
-            var _this = this;
-            if (onlyInView === void 0) { onlyInView = false; }
-            return objects.filter(function (o) { return ((!onlyInView || o.inView) && o.x + o.colBox.x < _this.x + _this.colBox.x + _this.colBox.width && o.x + o.colBox.x + o.colBox.width > _this.x + _this.colBox.x && o.y + o.colBox.y < _this.y + _this.colBox.y + _this.colBox.height && o.y + o.colBox.y + o.colBox.height > _this.y + _this.colBox.y); });
-        };
-        GameObject.prototype.checkCollision = function (x, y, w, h) {
-            if (w === void 0) { w = 0; }
-            if (h === void 0) { h = 0; }
-            return (x < this.x + this.colBox.x + this.colBox.width && x + w > this.x + this.colBox.x && y < this.y + this.colBox.y + this.colBox.height && y + h > this.y + this.colBox.y);
-        };
-        GameObject.prototype.setShadowMask = function (poly) { if (typeof poly[0].x === 'number') {
+        getCollisions(objects = this.area.objs, checkOutsideView = false) { return objects.filter(o => ((checkOutsideView || o.inView) && o.x + o.colBox.x < this.x + this.colBox.x + this.colBox.width && o.x + o.colBox.x + o.colBox.width > this.x + this.colBox.x && o.y + o.colBox.y < this.y + this.colBox.y + this.colBox.height && o.y + o.colBox.y + o.colBox.height > this.y + this.colBox.y)); }
+        checkCollision(x, y, w = 0, h = 0) { if (typeof x !== 'number') {
+            y = x.y + x.colBox.y;
+            w = x.colBox.width;
+            h = x.colBox.height;
+            x = x.x + x.colBox.x;
+        } return (x < this.x + this.colBox.x + this.colBox.width && x + w > this.x + this.colBox.x && y < this.y + this.colBox.y + this.colBox.height && y + h > this.y + this.colBox.y); }
+        distTo(x, y, xOff = 0, yOff = 0, squared = false) { x -= this.x + xOff; y -= this.y + yOff; return squared ? x * x + y * y : Math.sqrt(x * x + y * y); }
+        setShadowMask(poly) { if (typeof poly[0].x === 'number') {
             this.mask = poly;
-        } };
-        GameObject.prototype.delete = function () { this.area.remove(this); };
-        return GameObject;
-    }());
+        } }
+        delete() { if (this.area) {
+            this.area.remove(this);
+        } }
+    }
     exports.GameObject = GameObject;
     var Debug;
     (function (Debug) {
-        var show = false, dTCounter = +new Date(), logs = [], permLog = [], container = document.createElement('div'), output = document.createElement('pre');
-        container.setAttribute('style', "position: fixed;height: 100vh;padding-top: 20px; top: 0px;left: 20px;width: 60vw;pointer-events: none;text-shadow: 0 0 2px #000;");
+        let show = false, dTCounter = +new Date(), logs = [], permLog = [], objLog = [], clipBoxes = [], colBoxes = [], positions = [], container = document.createElement('div'), output = document.createElement('pre'), color = ['dodgerblue', 'tomato'];
+        container.setAttribute('style', `position: fixed;height: 100vh;padding-top: 20px; top: 0px;left: 20px;width: 60vw;color: ${color[0]};text-shadow: 0 0 2px #000;pointer-events: none;`);
         container.appendChild(output);
-        Debug.fontSize = 14, Debug.color = 'dodgerblue', Debug.defaultOptions = { dt: true, view: true, input: true };
+        Debug.fontSize = 14, Debug.options = { dt: true, view: true, input: true, area: true, colBox: false, clipBox: false, positions: false };
         function toggle(state) { if (state !== show) {
             show = state === undefined ? !show : state;
             show ? document.body.appendChild(container) : document.body.removeChild(container);
         } }
         Debug.toggle = toggle;
         ;
-        function log(data, persist) {
-            if (persist === void 0) { persist = false; }
-            var entry = JSON.stringify(data, null, '\t');
-            persist ? permLog.push(entry) : logs.push(entry);
-        }
+        function log(data, persist = false) { const entry = JSON.stringify(data, null, '\t'); persist ? permLog.push(entry) : logs.push(entry); }
         Debug.log = log;
         ;
+        function logObject(g, outline = false) { objLog.push(g); if (outline) {
+            drawColBox(g);
+            drawClipBox(g);
+            drawPosition(g);
+        } }
+        Debug.logObject = logObject;
         function clear() { permLog = []; }
         Debug.clear = clear;
         ;
-        function draw(ctx, dT) { if (+new Date() - dTCounter < 250) {
+        function drawClipBox(...objs) { clipBoxes = clipBoxes.concat(objs); }
+        Debug.drawClipBox = drawClipBox;
+        function drawColBox(...objs) { colBoxes = colBoxes.concat(objs); }
+        Debug.drawColBox = drawColBox;
+        function drawPosition(...objs) { positions = positions.concat(objs); }
+        Debug.drawPosition = drawPosition;
+        function setColor(primaryColor, secondaryColor) { color[0] = primaryColor; if (secondaryColor) {
+            color[1] = secondaryColor;
+        } this.container.style.color = color[0]; }
+        Debug.setColor = setColor;
+        function draw(ctx, dT) { ctx.fillStyle = color[1]; ctx.strokeStyle = color[1]; ctx.lineWidth = 1; if (Debug.options.clipBox) {
+            World.currentAreas.forEach(a => { ctx.save(); ctx.translate(-a.view.x, -a.view.y); a.objs.forEach(o => { if (o.inView) {
+                ctx.strokeRect(o.x + o.clipBox.x, o.y + o.clipBox.y, o.clipBox.width, o.clipBox.height);
+            } }); ctx.restore(); });
+        }
+        else if (clipBoxes.length) {
+            clipBoxes.forEach(o => { if (o.inView) {
+                ctx.save();
+                ctx.translate(-o.area.view.x, -o.area.view.y);
+                ctx.strokeRect(o.x + o.clipBox.x, o.y + o.clipBox.y, o.clipBox.width, o.clipBox.height);
+                ctx.restore();
+            } });
+        } if (Debug.options.positions) {
+            World.currentAreas.forEach(a => { ctx.save(); ctx.translate(-a.view.x, -a.view.y); a.objs.forEach(o => { if (o.inView) {
+                ctx.fillRect(o.x - 3, o.y - 3, 6, 6);
+            } }); ctx.restore(); });
+        }
+        else if (positions.length) {
+            positions.forEach(o => { if (o.inView) {
+                ctx.save();
+                ctx.translate(-o.area.view.x, -o.area.view.y);
+                ctx.fillRect(o.x - 3, o.y - 3, 6, 6);
+                ctx.restore();
+            } });
+        } ctx.strokeStyle = color[0]; ctx.fillStyle = color[0]; if (Debug.options.colBox) {
+            World.currentAreas.forEach(a => { ctx.save(); ctx.translate(-a.view.x, -a.view.y); a.objs.forEach(o => { if (o.inView) {
+                ctx.strokeRect(o.x + o.colBox.x, o.y + o.colBox.y, o.colBox.width, o.colBox.height);
+            } }); ctx.restore(); });
+        }
+        else if (colBoxes.length) {
+            colBoxes.forEach(o => { if (o.inView) {
+                ctx.save();
+                ctx.translate(-o.area.view.x, -o.area.view.y);
+                ctx.strokeRect(o.x + o.colBox.x, o.y + o.colBox.y, o.colBox.width, o.colBox.height);
+                ctx.restore();
+            } });
+        } if (+new Date() - dTCounter < 250) {
             logs = [];
             return;
-        } dTCounter = +new Date(); output.setAttribute('style', "font-size: " + Debug.fontSize + ";color: " + Debug.color + ";max-height: 100%;overflow: hidden;white-space: pre-wrap;"); output.innerHTML = ''; if (Debug.defaultOptions.dt) {
-            output.innerHTML += "dT    : " + dT.toFixed(3) + "<br/>";
-        } if (Debug.defaultOptions.view) {
-            output.innerHTML += "View  :<br/>" + ("    x: " + World.area.view.x.toFixed(2) + ",<br/>") + ("    y: " + World.area.view.y.toFixed(2) + ",<br/>") + ("    z: " + World.area.view.z.toFixed(2) + "<br/>");
-        } if (Debug.defaultOptions.input) {
-            output.innerHTML += "Input : " + getInputData() + "<br/><br/>";
-        } output.innerHTML += permLog.concat(logs).join('<br/>'); output.scrollTop = output.scrollHeight; logs = []; }
+        } dTCounter = +new Date(); output.setAttribute('style', `font-size: ${Debug.fontSize};color: ${color};max-height: 100%;overflow: hidden;white-space: pre-wrap;`); output.innerHTML = ''; if (Debug.options.dt) {
+            output.innerHTML += `dT ${dT.toFixed(3)}<br/>`;
+        } if (Debug.options.area) {
+            output.innerHTML += `Area <br/>  ${World.currentAreas.map(a => a.name).join(',')}<br/>`;
+        } if (Debug.options.view) {
+            output.innerHTML += `View <br/>` + `  x ${World.area.view.x.toFixed(2)},<br/>` + `  y ${World.area.view.y.toFixed(2)},<br/>` + `  z ${World.area.view.z.toFixed(2)}<br/>`;
+        } if (Debug.options.input) {
+            output.innerHTML += `Input: ${getInputData()}<br/><br/>`;
+        } output.innerHTML += objLog.reduce((str, o) => getObjectData(o), ''); output.innerHTML += permLog.concat(logs).join('<br/>'); output.scrollTop = output.scrollHeight; logs = []; }
         Debug.draw = draw;
         ;
-        function getInputData() { var str = []; str.push("<br/>    keyPressed = [" + Input.key.pressed.join(', ') + "]"); str.push("    mouseState ="); str.push("        x: " + Input.mouse.x); str.push("        y: " + Input.mouse.y); if (Input.mouse.left.pressed)
-            str.push("    left.pressed"); if (Input.mouse.left.dragging)
-            str.push("    left.dragging " + (Input.mouse.left.drag ? ' left.drag' : '')); if (Input.mouse.left.dragPts.length) {
-            str.push("        left.dragPts: [<br/>" + Input.mouse.left.dragPts.reduce(function (str, p) { return str = (str.length > 200 ? '...' + str.substr(-200) : str) + '(' + p.x + ', ' + p.y + ')'; }, '') + "]");
-        } if (Input.mouse.right.pressed)
-            str.push("    right.pressed"); if (Input.mouse.right.dragging)
-            str.push("    right.dragging " + (Input.mouse.right.drag ? 'right.drag' : '')); if (Input.mouse.right.dragPts.length) {
-            str.push("        right.dragPts: [<br/>" + Input.mouse.right.dragPts.reduce(function (str, p) { return str = (str.length > 200 ? '...' + str.substr(-200) : str) + '(' + p.x + ', ' + p.y + ')'; }, '') + "]");
-        } return str.join('<br/>'); }
+        function getInputData() { var str = []; str.push(`<br/>  keyPressed = [${Input.key.pressed.join(', ')}]`); str.push(`  mouseState`); str.push(`    x ${Input.mouse.x}`); str.push(`    y ${Input.mouse.y}`); if (Input.mouse.left.pressed)
+            str.push(`    left.pressed`); if (Input.mouse.left.dragging)
+            str.push(`    left.dragging ${Input.mouse.left.drag ? ' left.drag' : ''}`); if (Input.mouse.right.pressed)
+            str.push(`    right.pressed`); if (Input.mouse.right.dragging)
+            str.push(`    right.dragging ${Input.mouse.right.drag ? 'right.drag' : ''}`); return str.join('<br/>'); }
         ;
+        function getObjectData(g) { return g.__proto__.constructor.name + '<br/>' + `  x ${g.x.toFixed(2)}<br/>` + `  y ${g.y.toFixed(2)}<br/>` + `  z ${g.z.toFixed(2)}<br/>` + `  ang ${g.ang.toFixed(2)},<br/>` + (g.bound ? `  Bound to ${g.bound.obj.__proto__.constructor.name}` : '') + (g.inView ? `  In View<br/>` : `  Out of View<br/>`); }
     })(Debug = exports.Debug || (exports.Debug = {}));
     var Engine;
     (function (Engine) {
-        var can, ctx, dT = 0, currentT = +new Date(), frameDur = 33, assets;
-        Engine.preStep = function () { }, Engine.postStep = function () { }, Engine.preDraw = function () { }, Engine.postDraw = function () { };
+        let can, ctx, dT = 0, currentT = +new Date(), frameDur = 33, assets;
+        Engine.preStep = () => { }, Engine.postStep = () => { }, Engine.preDraw = () => { }, Engine.postDraw = () => { }, Engine.maxDelta = 3;
         function getDelta() { return dT; }
         Engine.getDelta = getDelta;
         ;
@@ -1678,52 +1726,37 @@ define("Bunas", ["require", "exports"], function (require, exports) {
         function getCanvasContext() { return ctx; }
         Engine.getCanvasContext = getCanvasContext;
         ;
-        function getSprite(name, isCheck) {
-            if (isCheck === void 0) { isCheck = false; }
-            var asset = assets.sprites[name];
-            if (!asset) {
-                if (isCheck) {
-                    return null;
-                }
-                else {
-                    console.error("Bunas Engine Error: No sprite asset with name \"" + name + "\" found.");
-                }
+        function getSprite(name, isCheck = false) { let asset = assets.sprites[name]; if (!asset) {
+            if (isCheck) {
+                return null;
             }
-            return asset;
-        }
+            else {
+                console.error(`Bunas Engine Error: No sprite asset with name "${name}" found.`);
+            }
+        } return asset; }
         Engine.getSprite = getSprite;
         ;
-        function getBackground(name, isCheck) {
-            if (isCheck === void 0) { isCheck = false; }
-            var asset = assets.bgs[name];
-            if (!asset) {
-                if (isCheck) {
-                    return null;
-                }
-                else {
-                    console.error("Bunas Engine Error: No background asset with name \"" + name + "\" found.");
-                }
+        function getBackground(name, isCheck = false) { let asset = assets.bgs[name]; if (!asset) {
+            if (isCheck) {
+                return null;
             }
-            return asset;
-        }
+            else {
+                console.error(`Bunas Engine Error: No background asset with name "${name}" found.`);
+            }
+        } return asset; }
         Engine.getBackground = getBackground;
         ;
-        function getSound(name, isCheck) {
-            if (isCheck === void 0) { isCheck = false; }
-            var asset = assets.sounds[name];
-            if (!asset) {
-                if (isCheck) {
-                    return null;
-                }
-                else {
-                    console.error("Bunas Engine Error: No sound asset with name \"" + name + "\" found.");
-                }
+        function getSound(name, isCheck = false) { let asset = assets.sounds[name]; if (!asset) {
+            if (isCheck) {
+                return null;
             }
-            return asset;
-        }
+            else {
+                console.error(`Bunas Engine Error: No sound asset with name "${name}" found.`);
+            }
+        } return asset; }
         Engine.getSound = getSound;
         ;
-        var _externalCallback, delayLoad, delayInit, initComplete = false;
+        let _externalCallback, delayLoad, delayInit, initComplete = false;
         document.onreadystatechange = function () { if (document.readyState === 'complete' && delayInit) {
             delayInit();
         } };
@@ -1748,12 +1781,16 @@ define("Bunas", ["require", "exports"], function (require, exports) {
         }
         else {
             can = document.getElementsByTagName('canvas')[0];
-            if (!can) {
+            if (can) {
+                can.width = canWidth || can.width || window.innerWidth;
+                can.height = canHeight || can.height || window.innerHeight;
+            }
+            else {
                 can = document.createElement('canvas');
+                can.width = canWidth || window.innerWidth;
+                can.height = canHeight || window.innerHeight;
                 document.body.appendChild(can);
             }
-            can.width = canWidth || window.innerWidth;
-            can.height = canHeight || window.innerHeight;
         } Engine.cW = can.width; Engine.cH = can.height; ctx = can.getContext('2d'); ctx.imageSmoothingEnabled = false; Input.init(); World.area = new World.Area('globalArea'); World.area.open(); _externalCallback = externalCallback; if (delayLoad) {
             delayLoad();
         }
@@ -1762,12 +1799,12 @@ define("Bunas", ["require", "exports"], function (require, exports) {
         } }
         Engine.init = init;
         ;
-        var loading = 0, assetTotal, spriteLoader, soundLoader, bgLoader;
+        let loading = 0, assetTotal, spriteLoader, soundLoader, bgLoader;
         function preLoad(assets, loadingDrawFunc) { if (initComplete) {
             console.error('Bunas Error: Engine already initalised. Assets can only be preloaded when called before Engine.init()');
             return;
         } if (!loadingDrawFunc) {
-            loadingDrawFunc = function (ctx, fractionLoaded) { ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(625, 295, 140, (-Math.PI / 2), (-Math.PI / 2) + ((Math.PI * 2) * (1 - fractionLoaded)), false); ctx.stroke(); };
+            loadingDrawFunc = function (ctx, fractionLoaded) { ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(Engine.cW / 2, Engine.cH / 2, 140, (-Math.PI / 2), (-Math.PI / 2) + ((Math.PI * 2) * (1 - fractionLoaded)), false); ctx.stroke(); };
         } delayLoad = internalLoad.bind(null, assets, loadingDrawFunc); }
         Engine.preLoad = preLoad;
         function internalLoad(assetRoutes, loadingDrawFunc) { spriteLoader = assetRoutes.sprites || {}; soundLoader = assetRoutes.sounds || {}; bgLoader = assetRoutes.bgs || {}; assetTotal = Object.keys(spriteLoader).length + Object.keys(soundLoader).length + Object.keys(bgLoader).length; assetLoader(); advanceLoading(loadingDrawFunc); }
@@ -1782,34 +1819,31 @@ define("Bunas", ["require", "exports"], function (require, exports) {
             initLoop();
         } }
         ;
-        function assetLoader() { for (var element in spriteLoader) {
+        function assetLoader() { for (let element in spriteLoader) {
             loading += 1;
-            var spr = new Image();
+            let spr = new Image();
             spr.src = spriteLoader[element];
             spriteLoader[element] = spr;
-            spr.onload = function () { return loading -= 1; };
-        } for (var element in bgLoader) {
+            spr.onload = () => loading -= 1;
+        } for (let element in bgLoader) {
             loading += 1;
-            var bg = new Image();
+            let bg = new Image();
             bg.src = bgLoader[element];
             bgLoader[element] = bg;
-            bg.onload = function () { return loading -= 1; };
-        } for (var element in soundLoader) {
+            bg.onload = () => loading -= 1;
+        } for (let element in soundLoader) {
             loading += 1;
-            var sound = new Audio();
+            let sound = new Audio();
             sound.src = soundLoader[element];
             soundLoader[element] = sound;
             sound.volume = 0.1;
             sound.load();
-            sound.oncanplaythrough = function () { return loading -= 1; };
+            sound.oncanplaythrough = () => loading -= 1;
         } }
         ;
         function initLoop() { _externalCallback(); loop(); }
         ;
-        function loop() {
-            var _this = this;
-            setTimeout(function () { var newT = +new Date(); dT = (newT - currentT) / frameDur; currentT = newT; Engine.preStep(dT); World.step(dT); Engine.postStep(dT); Input.step(); ctx.clearRect(-1, -1, Engine.cW + 1, Engine.cH + 1); Engine.preDraw(ctx, dT); World.draw(ctx, dT); Debug.draw(ctx, dT); Input.drawCursor(ctx, dT); Engine.postDraw(ctx, dT); window.requestAnimationFrame(loop.bind(_this)); }, frameDur - (+new Date()) + currentT);
-        }
+        function loop() { setTimeout(() => { let newT = +new Date(); dT = Math.min(Engine.maxDelta, (newT - currentT) / frameDur); currentT = newT; Engine.preStep(dT); World.step(dT); Engine.postStep(dT); Input.step(); ctx.clearRect(-1, -1, Engine.cW + 1, Engine.cH + 1); Engine.preDraw(ctx, dT); World.draw(ctx, dT); Debug.draw(ctx, dT); Input.drawCursor(ctx, dT); Engine.postDraw(ctx, dT); window.requestAnimationFrame(loop.bind(this)); }, frameDur - (+new Date()) + currentT); }
         ;
     })(Engine = exports.Engine || (exports.Engine = {}));
     var Graphics;
@@ -1817,262 +1851,227 @@ define("Bunas", ["require", "exports"], function (require, exports) {
         ;
         function setImageSmoothing(on) { Engine.getCanvasContext().imageSmoothingEnabled = on; }
         Graphics.setImageSmoothing = setImageSmoothing;
-        var TileSet = (function () {
-            function TileSet(tileImage, tileWidth, tileHeight) {
-                this.tileSet = typeof tileImage === 'string' ? Engine.getBackground(tileImage) : tileImage;
-                this.width = tileWidth;
-                this.height = tileHeight || this.tileSet.height;
-            }
+        class TileSet {
+            constructor(tileImage, tileWidth, tileHeight) { this.tileSet = typeof tileImage === 'string' ? Engine.getBackground(tileImage) : tileImage; this.width = tileWidth; this.height = tileHeight || this.tileSet.height; }
             ;
-            TileSet.prototype.draw = function (ctx, canX, canY, tileNum) { ctx.save(); ctx.translate(canX, canY); var x = tileNum * this.width, y = 0; if (x >= this.tileSet.width) {
+            draw(ctx, canX, canY, tileNum) { ctx.save(); ctx.translate(canX, canY); let x = tileNum * this.width, y = 0; if (x >= this.tileSet.width) {
                 y = Math.floor(x / this.tileSet.width) * this.height;
                 x %= this.tileSet.width;
-            } ctx.drawImage(this.tileSet, x, y, this.width, this.height, 0, 0, this.width, this.height); ctx.restore(); };
+            } ctx.drawImage(this.tileSet, x, y, this.width, this.height, 0, 0, this.width, this.height); ctx.restore(); }
             ;
-            return TileSet;
-        }());
+        }
         Graphics.TileSet = TileSet;
         ;
-        var SpriteSheet = (function () {
-            function SpriteSheet(sprite, frTotal, duration) {
-                if (frTotal === void 0) { frTotal = 1; }
-                if (duration === void 0) { duration = 0; }
+        class SpriteSheet {
+            constructor(sprite, frTotal = 1, duration = 0) {
                 this.frTotal = frTotal;
                 this.frCurrent = 0;
                 this.paused = false;
                 this.reversed = false;
-                this.onEnd = function () { };
+                this.onEnd = () => { };
                 this.sprite = typeof sprite === 'string' ? Engine.getSprite(sprite) : sprite;
                 this.width = this.sprite.width / frTotal;
                 this.height = this.sprite.height;
                 this.frDur = duration / frTotal;
             }
             ;
-            Object.defineProperty(SpriteSheet.prototype, "frame", {
-                get: function () { return Math.floor(this.frCurrent); },
-                set: function (val) { this.frCurrent = val; },
-                enumerable: true,
-                configurable: true
-            });
-            SpriteSheet.prototype.draw = function (ctx, canX, canY, ang, scale) {
-                if (ang === void 0) { ang = 0; }
-                if (scale === void 0) { scale = [1, 1]; }
-                if (typeof scale === 'number') {
-                    scale = [scale, scale];
+            get frame() { return Math.floor(this.frCurrent); }
+            set frame(val) { this.frCurrent = val; }
+            draw(ctx, canX, canY, ang = 0, scale = [1, 1]) { if (typeof scale === 'number') {
+                scale = [scale, scale];
+            } ctx.save(); ctx.translate(canX + (this.width / 2), canY + (this.height / 2)); ctx.scale(scale[0], scale[1]); ctx.rotate(ang); let currentFrame = Math.floor(this.frCurrent) * this.width; if (this.reversed) {
+                currentFrame = this.frTotal - currentFrame;
+            } ctx.drawImage(this.sprite, currentFrame, 0, this.width, this.height, -this.width / 2, -this.height / 2, this.width, this.height); if (this.frDur > 0 && !this.paused) {
+                this.frCurrent += this.frDur * Engine.getDelta();
+                if (this.frCurrent >= this.frTotal) {
+                    this.frCurrent = 0;
                 }
-                ctx.save();
-                ctx.translate(canX + (this.width / 2), canY + (this.height / 2));
-                ctx.scale(scale[0], scale[1]);
-                ctx.rotate(ang);
-                var currentFrame = Math.floor(this.frCurrent) * this.width;
-                if (this.reversed) {
-                    currentFrame = this.frTotal - currentFrame;
-                }
-                ctx.drawImage(this.sprite, currentFrame, 0, this.width, this.height, -this.width / 2, -this.height / 2, this.width, this.height);
-                if (this.frDur > 0 && !this.paused) {
-                    this.frCurrent += this.frDur;
-                    if (this.frCurrent >= this.frTotal) {
-                        this.frCurrent = 0;
-                    }
-                }
-                ctx.restore();
-            };
+            } ctx.restore(); }
             ;
-            SpriteSheet.prototype.setDuration = function (frames, perFrame) {
-                if (perFrame === void 0) { perFrame = false; }
-                this.frDur = perFrame ? frames : frames / this.frTotal;
-            };
-            SpriteSheet.prototype.toggle = function (play) { if (typeof play === 'undefined') {
+            setDuration(frames, perFrame = false) { this.frDur = perFrame ? frames : frames / this.frTotal; }
+            toggle(play) { if (typeof play === 'undefined') {
                 this.paused = !this.paused;
             }
             else {
                 this.paused = !play;
-            } };
+            } }
             ;
-            SpriteSheet.prototype.reverse = function (runBackwards) { if (typeof runBackwards === 'undefined') {
+            reverse(runBackwards) { if (typeof runBackwards === 'undefined') {
                 this.reversed = !this.reversed;
             }
             else {
                 this.reversed = runBackwards;
-            } };
+            } }
             ;
-            return SpriteSheet;
-        }());
+        }
         Graphics.SpriteSheet = SpriteSheet;
         ;
-        var VectorSprite = (function () {
-            function VectorSprite(drawFunction, keyframeSet, duration) {
-                if (keyframeSet === void 0) { keyframeSet = null; }
-                if (duration === void 0) { duration = 30; }
+        class VectorSprite {
+            constructor(drawFunction, keyframeSet = null, duration = 30) {
                 this.drawFunction = drawFunction;
                 this.keyframeSet = keyframeSet;
                 this.duration = duration;
                 this.fr = 0;
                 this.paused = false;
-                this.onEnd = function () { };
+                this.onEnd = () => { };
             }
             ;
-            VectorSprite.prototype.draw = function (ctx, x, y, ang) {
-                if (ang === void 0) { ang = 0; }
-                ctx.save();
-                ctx.translate(x, y);
-                ctx.rotate(ang);
-                this.drawFunction(this.keyframeSet ? tween(this.keyframeSet, this.fr) : null, ctx);
-                ctx.restore();
-                if (this.paused) {
-                    return;
-                }
-                this.fr += (1 / this.duration) * Engine.getDelta();
-                if (this.fr > 1 || this.fr < 0) {
-                    this.fr = (this.fr + 1) % 1;
-                    this.onEnd();
-                }
-            };
+            draw(ctx, x, y, ang = 0) { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); this.drawFunction(this.keyframeSet ? tween(this.keyframeSet, this.fr) : null, ctx); ctx.restore(); if (this.paused) {
+                return;
+            } this.fr += (1 / this.duration) * Engine.getDelta(); if (this.fr > 1 || this.fr < 0) {
+                this.fr = (this.fr + 1) % 1;
+                this.onEnd();
+            } }
             ;
-            VectorSprite.prototype.setDuration = function (frames) { this.duration = this.duration < 0 ? frames * -1 : frames; };
-            VectorSprite.prototype.toggle = function (play) { if (typeof play === 'undefined') {
+            setDuration(frames) { this.duration = this.duration < 0 ? frames * -1 : frames; }
+            toggle(play) { if (typeof play === 'undefined') {
                 this.paused = !this.paused;
             }
             else {
                 this.paused = !play;
-            } };
+            } }
             ;
-            VectorSprite.prototype.reverse = function (runBackwards) { if ((typeof runBackwards === 'undefined') || (this.duration < 0 && !runBackwards) || (this.duration > 0 && runBackwards)) {
+            reverse(runBackwards) { if ((typeof runBackwards === 'undefined') || (this.duration < 0 && !runBackwards) || (this.duration > 0 && runBackwards)) {
                 this.duration *= -1;
-            } };
+            } }
             ;
-            return VectorSprite;
-        }());
+        }
         Graphics.VectorSprite = VectorSprite;
         ;
-        var Emitter = (function (_super) {
-            __extends(Emitter, _super);
-            function Emitter(x, y, ang, power, rate) {
-                var _this = _super.call(this, x, y) || this;
-                _this.x = x;
-                _this.y = y;
-                _this.parts = [];
-                _this.currentRate = 0;
-                _this._size = [2, 2];
-                _this._color = 'dodgerblue';
-                _this._lifespan = [100, 100];
-                _this._ang = [0, 0];
-                _this._power = [1, 1];
-                _this._rate = [10, 10];
+        class Emitter extends GameObject {
+            constructor(x, y, z, ang, power, rate) {
+                super(x, y, z);
+                this.x = x;
+                this.y = y;
+                this.parts = [];
+                this.currentRate = 0;
+                this.deleted = false;
+                this._ang = [0, 0];
+                this._power = [1, 0];
+                this._rate = [-1, 0];
+                this._size = [2, 0];
+                this._color = ['dodgerblue'];
+                this._lifespan = [100, 0];
+                this._fade = [-1, 0];
+                this._partAng = [0, 0];
+                this._partDAng = [0, 0];
                 if (ang) {
-                    _this._ang = _this.configRange(ang);
+                    this._ang = this.configRange(ang);
                 }
                 if (power) {
-                    _this._power = _this.configRange(power);
+                    this._power = this.configRange(power);
                 }
                 if (rate) {
-                    _this._rate = _this.configRange(rate);
+                    this._rate = this.configRange(rate);
                 }
-                return _this;
             }
             ;
-            Object.defineProperty(Emitter.prototype, "gravity", {
-                set: function (g) { if (typeof g === 'number') {
-                    this._grav = new Physics.Vec(g, Math.PI / 2, true);
-                }
-                else {
-                    this._grav = g;
-                } },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Emitter.prototype, "angle", {
-                set: function (a) { this._ang = this.configRange(a); },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Emitter.prototype, "power", {
-                set: function (a) { this._power = this.configRange(a); },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Emitter.prototype, "rate", {
-                set: function (a) { this._rate = this.configRange(a); },
-                enumerable: true,
-                configurable: true
-            });
-            Emitter.prototype.configRange = function (p) { if (typeof p === 'object') {
-                return [p[0], p[1] - p[0]];
+            set gravity(g) { if (typeof g === 'number') {
+                this._grav = new Physics.Vec(g, Math.PI / 2, true);
             }
             else {
-                return [p, 0];
-            } };
-            Emitter.prototype.setParticle = function (size, color, lifespan) { this._size = this.configRange(size); if (color) {
-                this._color = color;
+                this._grav = g;
+            } }
+            set angle(a) { this._ang = this.configRange(a); }
+            set power(a) { this._power = this.configRange(a); }
+            set rate(a) { this._rate = this.configRange(a); }
+            set fade(f) { this._fade = this.configRange(f); }
+            configRange(p) { return typeof p === 'number' ? [p, 0] : [p[0], p[1] - p[0]]; }
+            getValue(range) { if (typeof range[0] === 'string') {
+                return range[Math.floor(Math.random() * range.length)];
+            }
+            else {
+                return range[0] + (Math.random() * range[1]);
+            } }
+            setParticle(size, color, lifespan, fade) { this.sprite = null; this._size = this.configRange(size); if (color) {
+                this._color = typeof color === 'string' ? [color] : color;
             } if (lifespan) {
                 this._lifespan = this.configRange(lifespan);
-            } };
-            Emitter.prototype.step = function (dt) {
-                var _this = this;
+            } if (fade) {
+                this._fade = this.configRange(fade);
+            } }
+            setSpriteParticle(sprite, lifespan, fade, ang, dAng) { this._sprite = sprite; if (lifespan) {
+                this._lifespan = this.configRange(lifespan);
+            } if (fade) {
+                this._fade = this.configRange(fade);
+            } if (ang) {
+                this._partAng = this.configRange(ang);
+            } if (dAng) {
+                this._partDAng = this.configRange(dAng);
+            } }
+            emit(amount, offset = 0) { for (let i = 0; i < amount; i++) {
+                this.parts.push(new Particle(this.x, this.y, this.getValue(this._lifespan), new Physics.Vec(this.getValue(this._power), this.ang + this.getValue(this._ang), true), this.getValue(this._fade), offset, this._sprite || [this.getValue(this._size), this.getValue(this._color)], this._partAng ? this.getValue(this._partAng) : 0, this._partDAng ? this.getValue(this._partDAng) : 0));
+            } }
+            step(dt) { if (this._rate[0] > -1) {
                 this.currentRate += dt;
                 if (this.currentRate > this._rate[0]) {
-                    for (var i = this._rate[0]; i < this.currentRate; i += this._rate[0]) {
-                        var s = this._size[0] + (Math.random() * this._size[1]), c = this._color, l = this._lifespan[0] + (Math.random() * this._lifespan[1]), a = this._ang[0] + (Math.random() * this._ang[1]), p = this._power[0] + (Math.random() * this._power[1]);
-                        this.parts.push(new Particle(this.x, this.y, s, c, l, new Physics.Vec(p, a, true), (this.currentRate - i) / this._rate[0]));
+                    for (let i = this._rate[0]; i < this.currentRate; i += this._rate[0]) {
+                        this.emit(1, (this.currentRate - i) / this._rate[0]);
                     }
                     this.currentRate %= this._rate[0];
                     this.currentRate += Math.random() * this._rate[1];
                 }
-                this.parts.forEach(function (p, i) { p.lifespan -= dt; if (p.lifespan < 0) {
-                    p.delete(_this.parts, i);
-                } p.step(_this._grav); });
-            };
-            Emitter.prototype.draw = function (ctx, dt) { ctx.beginPath(); this.parts.forEach(function (p) { p.draw(ctx); }); ctx.fill(); };
-            return Emitter;
-        }(GameObject));
+            } this.parts.forEach((p, i) => { p.step(dt, this._grav); if (p.opacity <= 0) {
+                this.parts.splice(i, 1);
+            } }); if (this.deleted && this.parts.length === 0) {
+                super.delete();
+            } }
+            draw(ctx, dt) { ctx.save(); this.parts.forEach(p => p.draw(ctx)); ctx.restore(); }
+            delete(force = false) { if (force) {
+                this.parts = [];
+                super.delete();
+            }
+            else {
+                this.deleted = true;
+            } }
+        }
         Graphics.Emitter = Emitter;
-        var Particle = (function () {
-            function Particle(x, y, size, color, lifespan, velocity, offset) {
-                if (size === void 0) { size = 2; }
-                if (color === void 0) { color = 'black'; }
-                if (lifespan === void 0) { lifespan = 1000; }
-                if (offset === void 0) { offset = 1; }
-                var _this = this;
+        class Particle {
+            constructor(x, y, lifespan, velocity, fade, offset, sprite, ang, dAng) {
                 this.x = x;
                 this.y = y;
-                this.size = size;
-                this.color = color;
                 this.lifespan = lifespan;
                 this.velocity = velocity;
+                this.fade = fade;
+                this.ang = ang;
+                this.dAng = dAng;
                 this.opacity = 1;
                 if (!velocity) {
                     this.velocity = new Physics.Vec(0, 0);
                 }
-                this.x += this.velocity.scale(offset).x - (this.size / 2);
-                this.y += this.velocity.scale(offset).y - (this.size / 2);
-                if (this.size <= 2) {
-                    this.draw = function (ctx) { ctx.moveTo(_this.x, _this.y); ctx.rect(_this.x, _this.y, _this.size, _this.size); if (_this.opacity < 1) {
-                        ctx.globalAlpha = _this.opacity;
-                    } if (ctx.strokeStyle !== _this.color) {
-                        ctx.strokeStyle = _this.color;
-                        ctx.stroke();
-                        ctx.beginPath();
-                    } ctx.globalAlpha = 1; };
+                let rad = 0;
+                if (typeof sprite === 'function') {
+                    this.randomSeed = Math.random();
+                    this.draw = ctx => { ctx.save(); ctx.globalAlpha = this.opacity; ctx.translate(this.x, this.y); ctx.rotate(this.ang); sprite(ctx, this.randomSeed); ctx.restore(); this.ang += this.dAng; };
+                }
+                else if (typeof sprite[0] !== 'number') {
+                    rad = Math.sqrt(Math.pow(sprite.width, 2) + Math.pow(sprite.height, 2)) / 2;
+                    this.draw = ctx => { ctx.save(); ctx.globalAlpha = this.opacity; ctx.translate(this.x - rad, this.y - rad); ctx.rotate(this.ang); ctx.drawImage(sprite, 0, 0); ctx.restore(); this.ang += this.dAng; };
                 }
                 else {
-                    this.draw = function (ctx) { ctx.moveTo(_this.x, _this.y); ctx.arc(_this.x, _this.y, _this.size, 0, Math.PI * 2); if (_this.opacity < 1) {
-                        ctx.globalAlpha = _this.opacity;
-                    } if (ctx.fillStyle !== _this.color) {
-                        ctx.fillStyle = _this.color;
-                        ctx.fill();
-                        ctx.beginPath();
-                    } ctx.globalAlpha = 1; };
+                    const size = sprite[0], color = sprite[1];
+                    rad = size / 2;
+                    this.draw = (ctx) => { ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.arc(this.x, this.y, size, 0, Math.PI * 2); ctx.globalAlpha = this.opacity; ctx.fillStyle = color; ctx.fill(); };
                 }
+                this.x += this.velocity.scale(offset).x - rad;
+                this.y += this.velocity.scale(offset).y - rad;
             }
             ;
-            Particle.prototype.step = function (gravity) { if (gravity) {
+            step(dt, gravity) { if (gravity) {
                 this.velocity = this.velocity.add(gravity);
-            } this.x += this.velocity.x; this.y += this.velocity.y; };
-            Particle.prototype.delete = function (parts, i) { this.opacity -= 0.2; if (this.opacity <= 0)
-                parts.splice(i, 1); };
-            return Particle;
-        }());
-        function tween(keyframeSet, currentFrame) { var params = {}; for (var key in keyframeSet) {
+            } this.x += this.velocity.x; this.y += this.velocity.y; if (this.lifespan > 0) {
+                this.lifespan -= dt;
+            }
+            else {
+                if (this.fade === -1) {
+                    this.opacity = 0;
+                }
+                else {
+                    this.opacity -= this.fade;
+                }
+            } }
+        }
+        function tween(keyframeSet, currentFrame) { let params = {}; for (let key in keyframeSet) {
             if (typeof keyframeSet[key] === 'number') {
                 params[key] = keyframeSet[key];
             }
@@ -2081,38 +2080,38 @@ define("Bunas", ["require", "exports"], function (require, exports) {
             }
         } return params; }
         ;
-        function interpolate(keyframe, currentFrame) { var nextKeyframe = 0; keyframe = keyframe; if (typeof keyframe[0] === 'number') {
-            keyframe = keyframe.map(function (k, i) { return [i / keyframe.length, k]; });
-        } for (var k = 0; k < keyframe.length; k++) {
+        function interpolate(keyframe, currentFrame) { let nextKeyframe = 0; keyframe = keyframe; if (typeof keyframe[0] === 'number') {
+            keyframe = keyframe.map((k, i) => [i / keyframe.length, k]);
+        } for (let k = 0; k < keyframe.length; k++) {
             if (currentFrame < keyframe[k][0]) {
                 nextKeyframe = k;
                 break;
             }
-        } var end = keyframe[nextKeyframe], start = keyframe[nextKeyframe === 0 ? keyframe.length - 1 : nextKeyframe - 1]; if (end[0] === 1) {
+        } let end = keyframe[nextKeyframe], start = keyframe[nextKeyframe === 0 ? keyframe.length - 1 : nextKeyframe - 1]; if (end[0] === 1) {
             end[0] = 0.9999;
-        } var frameDiff = (1 + end[0] - start[0]) % 1; return Easings[start[2] || 'sine'](currentFrame - start[0], start[1], end[1] - start[1], frameDiff); }
+        } let frameDiff = (1 + end[0] - start[0]) % 1; return Easings[start[2] || 'sine'](currentFrame - start[0], start[1], end[1] - start[1], frameDiff); }
         ;
-        var Easings = { linear: function (t, b, c, d) { return b + (c * (t / d)); }, sine: function (t, b, c, d) { return -c / 2 * (Math.cos(Math.PI * t / d) - 1) + b; }, cubic: function (t, b, c, d) { return (t /= d / 2) < 1 ? c / 2 * t * t * t + b : c / 2 * ((t -= 2) * t * t + 2) + b; }, quad: function (t, b, c, d) { return (t /= d / 2) < 1 ? c / 2 * t * t + b : -c / 2 * ((--t) * (t - 2) - 1) + b; }, quart: function (t, b, c, d) { return (t /= d / 2) < 1 ? c / 2 * t * t * t * t + b : -c / 2 * ((t -= 2) * t * t * t - 2) + b; }, quint: function (t, b, c, d) { return (t /= d / 2) < 1 ? c / 2 * t * t * t * t * t + b : c / 2 * ((t -= 2) * t * t * t * t + 2) + b; }, expo: function (t, b, c, d) { if (t == 0)
+        const Easings = { linear: (t, b, c, d) => b + (c * (t / d)), sine: (t, b, c, d) => -c / 2 * (Math.cos(Math.PI * t / d) - 1) + b, cubic: (t, b, c, d) => (t /= d / 2) < 1 ? c / 2 * t * t * t + b : c / 2 * ((t -= 2) * t * t + 2) + b, quad: (t, b, c, d) => (t /= d / 2) < 1 ? c / 2 * t * t + b : -c / 2 * ((--t) * (t - 2) - 1) + b, quart: (t, b, c, d) => (t /= d / 2) < 1 ? c / 2 * t * t * t * t + b : -c / 2 * ((t -= 2) * t * t * t - 2) + b, quint: (t, b, c, d) => (t /= d / 2) < 1 ? c / 2 * t * t * t * t * t + b : c / 2 * ((t -= 2) * t * t * t * t + 2) + b, expo: (t, b, c, d) => { if (t == 0)
                 return b; if (t == d)
                 return b + c; if ((t /= d / 2) < 1)
-                return c / 2 * Math.pow(2, 10 * (t - 1)) + b; return c / 2 * (-Math.pow(2, -10 * --t) + 2) + b; }, back: function (t, b, c, d) { return (t /= d / 2) < 1 ? c / 2 * (t * t * ((3.6) * t - 2.6)) + b : c / 2 * ((t -= 2) * t * (3.6 * t + 2.6) + 2) + b; }, bounce: function (t, b, c, d) { return t < d / 2 ? Easings.bounceIn(t * 2, 0, c, d) * .5 + b : Easings.bounceOut(t * 2 - d, 0, c, d) * .5 + c * .5 + b; }, elastic: function (t, b, c, d) { var s = 1.70158; var p = 0; var a = c; if (t == 0)
+                return c / 2 * Math.pow(2, 10 * (t - 1)) + b; return c / 2 * (-Math.pow(2, -10 * --t) + 2) + b; }, back: (t, b, c, d) => (t /= d / 2) < 1 ? c / 2 * (t * t * ((3.6) * t - 2.6)) + b : c / 2 * ((t -= 2) * t * (3.6 * t + 2.6) + 2) + b, bounce: (t, b, c, d) => t < d / 2 ? Easings.bounceIn(t * 2, 0, c, d) * .5 + b : Easings.bounceOut(t * 2 - d, 0, c, d) * .5 + c * .5 + b, elastic: (t, b, c, d) => { let s = 1.70158, p = 0, a = c; if (t == 0)
                 return b; if ((t /= d / 2) == 2)
                 return b + c; if (!p)
                 p = d * (.3 * 1.5); if (a < Math.abs(c)) {
                 a = c;
-                var s = p / 4;
+                s = p / 4;
             }
             else
-                var s = p / (2 * Math.PI) * Math.asin(c / a); if (t < 1)
-                return -.5 * (a * Math.pow(2, 10 * (t -= 1)) * Math.sin((t * d - s) * (2 * Math.PI) / p)) + b; return a * Math.pow(2, -10 * (t -= 1)) * Math.sin((t * d - s) * (2 * Math.PI) / p) * .5 + c + b; }, circular: function (t, b, c, d) { return (t /= d / 2) < 1 ? -c / 2 * (Math.sqrt(1 - t * t) - 1) + b : c / 2 * (Math.sqrt(1 - (t -= 2) * t) + 1) + b; }, sineIn: function (t, b, c, d) { return -c * Math.cos(t / d * (Math.PI / 2)) + c + b; }, cubicIn: function (t, b, c, d) { return c * (t /= d) * t * t + b; }, quadIn: function (t, b, c, d) { return c * (t /= d) * t + b; }, quartIn: function (t, b, c, d) { return c * (t /= d) * t * t * t + b; }, expoIn: function (t, b, c, d) { return (t == 0) ? b : c * Math.pow(2, 10 * (t / d - 1)) + b; }, circularIn: function (t, b, c, d) { return -c * (Math.sqrt(1 - (t /= d) * t) - 1) + b; }, backIn: function (t, b, c, d) { return c * (t /= d) * t * (2.7 * t - 1.7) + b; }, bounceIn: function (t, b, c, d) { return c - Easings.bounceOut(d - t, 0, c, d) + b; }, elasticIn: function (t, b, c, d) { var s = 1.70158; var p = 0; var a = c; if (t == 0)
+                s = p / (2 * Math.PI) * Math.asin(c / a); if (t < 1)
+                return -.5 * (a * Math.pow(2, 10 * (t -= 1)) * Math.sin((t * d - s) * (2 * Math.PI) / p)) + b; return a * Math.pow(2, -10 * (t -= 1)) * Math.sin((t * d - s) * (2 * Math.PI) / p) * .5 + c + b; }, circular: (t, b, c, d) => (t /= d / 2) < 1 ? -c / 2 * (Math.sqrt(1 - t * t) - 1) + b : c / 2 * (Math.sqrt(1 - (t -= 2) * t) + 1) + b, sineIn: (t, b, c, d) => -c * Math.cos(t / d * (Math.PI / 2)) + c + b, cubicIn: (t, b, c, d) => c * (t /= d) * t * t + b, quadIn: (t, b, c, d) => c * (t /= d) * t + b, quartIn: (t, b, c, d) => c * (t /= d) * t * t * t + b, expoIn: (t, b, c, d) => (t == 0) ? b : c * Math.pow(2, 10 * (t / d - 1)) + b, circularIn: (t, b, c, d) => -c * (Math.sqrt(1 - (t /= d) * t) - 1) + b, backIn: (t, b, c, d) => c * (t /= d) * t * (2.7 * t - 1.7) + b, bounceIn: (t, b, c, d) => c - Easings.bounceOut(d - t, 0, c, d) + b, elasticIn: (t, b, c, d) => { let s = 1.70158, p = 0, a = c; if (t == 0)
                 return b; if ((t /= d) == 1)
                 return b + c; if (!p)
                 p = d * .3; if (a < Math.abs(c)) {
                 a = c;
-                var s = p / 4;
+                s = p / 4;
             }
             else
-                var s = p / (2 * Math.PI) * Math.asin(c / a); return -(a * Math.pow(2, 10 * (t -= 1)) * Math.sin((t * d - s) * (2 * Math.PI) / p)) + b; }, sineOut: function (t, b, c, d) { return c * Math.sin(t / d * (Math.PI / 2)) + b; }, cubicOut: function (t, b, c, d) { return c * ((t = t / d - 1) * t * t + 1) + b; }, quadOut: function (t, b, c, d) { return -c * (t /= d) * (t - 2) + b; }, quartOut: function (t, b, c, d) { return -c * ((t = t / d - 1) * t * t * t - 1) + b; }, expoOut: function (t, b, c, d) { return (t == d) ? b + c : c * (-Math.pow(2, -10 * t / d) + 1) + b; }, circularOut: function (t, b, c, d) { return c * Math.sqrt(1 - (t = t / d - 1) * t) + b; }, backOut: function (t, b, c, d) { return c * ((t = t / d - 1) * t * (2.7 * t + 1.7) + 1) + b; }, bounceOut: function (t, b, c, d) { if ((t /= d) < (1 / 2.75)) {
+                s = p / (2 * Math.PI) * Math.asin(c / a); return -(a * Math.pow(2, 10 * (t -= 1)) * Math.sin((t * d - s) * (2 * Math.PI) / p)) + b; }, sineOut: (t, b, c, d) => c * Math.sin(t / d * (Math.PI / 2)) + b, cubicOut: (t, b, c, d) => c * ((t = t / d - 1) * t * t + 1) + b, quadOut: (t, b, c, d) => -c * (t /= d) * (t - 2) + b, quartOut: (t, b, c, d) => -c * ((t = t / d - 1) * t * t * t - 1) + b, expoOut: (t, b, c, d) => (t == d) ? b + c : c * (-Math.pow(2, -10 * t / d) + 1) + b, circularOut: (t, b, c, d) => c * Math.sqrt(1 - (t = t / d - 1) * t) + b, backOut: (t, b, c, d) => c * ((t = t / d - 1) * t * (2.7 * t + 1.7) + 1) + b, bounceOut: (t, b, c, d) => { if ((t /= d) < (1 / 2.75)) {
                 return c * (7.5625 * t * t) + b;
             }
             else if (t < (2 / 2.75)) {
@@ -2123,7 +2122,7 @@ define("Bunas", ["require", "exports"], function (require, exports) {
             }
             else {
                 return c * (7.5625 * (t -= (2.625 / 2.75)) * t + .984375) + b;
-            } }, elasticOut: function (t, b, c, d) { var s = 1.70158; var p = 0; var a = c; if (t == 0)
+            } }, elasticOut: (t, b, c, d) => { var s = 1.70158; var p = 0; var a = c; if (t == 0)
                 return b; if ((t /= d) == 1)
                 return b + c; if (!p)
                 p = d * .3; if (a < Math.abs(c)) {
@@ -2138,125 +2137,106 @@ define("Bunas", ["require", "exports"], function (require, exports) {
         ;
         ;
         ;
-        var CLICKCODE = ['left', 'middle', 'right'];
-        var dragCheck = { tolerance: 40, originX: 0, originY: 0, dragPts: [] }, dblClickWait = 500, customCursor, clickableObjects = [];
-        Input.mouse = { x: 0, y: 0, left: { down: false, up: false, doubleUp: false, pressed: false, drag: false, startDrag: false, endDrag: false, dragging: false, dragPts: [] }, right: { down: false, up: false, doubleUp: false, pressed: false, drag: false, startDrag: false, endDrag: false, dragging: false, dragPts: [] } }, Input.key = { up: null, down: null, pressed: [] };
-        function init() { window.addEventListener('mousemove', onMouseMove.bind(this)); window.addEventListener('mousedown', onMouseDown.bind(this)); window.addEventListener('mouseup', onMouseUp.bind(this)); window.onkeydown = onKeyDown.bind(this); window.onkeyup = onKeyUp.bind(this); toggleContextMenu(false); }
+        const CLICKCODE = ['left', 'middle', 'right'];
+        let dragCheck = { tolerance: 10, originX: 0, originY: 0, dragPts: [] }, dblClickWait = 500, customCursor, clickableObjects = [];
+        Input.mouse = { x: 0, y: 0, left: { down: false, up: false, doubleDown: false, pressed: false, drag: false, startDrag: false, endDrag: false, dragging: false, dragPts: [] }, right: { down: false, up: false, doubleDown: false, pressed: false, drag: false, startDrag: false, endDrag: false, dragging: false, dragPts: [] } }, Input.key = { up: null, down: null, pressed: [] };
+        function init() { window.addEventListener('mousemove', onMouseMove.bind(this)); window.addEventListener('mousedown', onMouseDown.bind(this)); window.addEventListener('mouseup', onMouseUp.bind(this)); window.onkeydown = onKeyDown.bind(this); window.onkeyup = onKeyUp.bind(this); allowContextMenu(false); }
         Input.init = init;
         ;
-        function step() { emitClickableObjectEvents(); resetMouseButton(Input.mouse.left); resetMouseButton(Input.mouse.right); Input.key.down = null; Input.key.up = null; }
+        function step() { emitClickableObjectEvents(); [Input.mouse.left, Input.mouse.right].forEach(b => { b.down = false; b.up = false; b.doubleDown = false; b.drag = false; b.startDrag = false; b.endDrag = false; }); Input.key.down = null; Input.key.up = null; }
         Input.step = step;
         ;
-        function setDragTolerance(tolerance) { dragCheck.tolerance = tolerance; }
+        function setDragTolerance(tolerance) { dragCheck.tolerance = tolerance * tolerance; }
         Input.setDragTolerance = setDragTolerance;
         ;
-        function setDoubleClickWait(v) { dblClickWait = v; }
-        Input.setDoubleClickWait = setDoubleClickWait;
+        function setDoubleClickTiming(wait) { dblClickWait = wait; }
+        Input.setDoubleClickTiming = setDoubleClickTiming;
         ;
-        function toggleContextMenu(show) {
-            if (show === void 0) { show = true; }
-            if (show) {
-                window.oncontextmenu = function (e) { };
-            }
-            else {
-                window.oncontextmenu = function (e) { e.preventDefault(); };
-            }
+        function allowContextMenu(show = true) { if (show) {
+            window.oncontextmenu = function (e) { };
         }
-        Input.toggleContextMenu = toggleContextMenu;
+        else {
+            window.oncontextmenu = function (e) { e.preventDefault(); };
+        } }
+        Input.allowContextMenu = allowContextMenu;
         ;
-        function isPressed() {
-            var keys = [];
-            for (var _i = 0; _i < arguments.length; _i++) {
-                keys[_i] = arguments[_i];
-            }
-            return keys.some(function (k) { return Input.key.pressed.indexOf(k) !== -1; });
-        }
+        function isPressed(...keys) { return keys.some(k => Input.key.pressed.indexOf(k) !== -1); }
         Input.isPressed = isPressed;
         ;
-        function mouseInArea(a) { var view = a ? a.view : World.area.view; return { x: (Input.mouse.x / view.z) + view.x, y: (Input.mouse.y / view.z) + view.y }; }
+        function mouseInArea(a) { let view = a ? a.view : World.area.view; return { x: (Input.mouse.x / view.z) + view.x, y: (Input.mouse.y / view.z) + view.y }; }
         Input.mouseInArea = mouseInArea;
         function setCursor(cursor) { if (typeof cursor === 'string') {
             Engine.getCanvasEl().style.cursor = cursor;
         }
         else {
             Engine.getCanvasEl().style.cursor = 'none';
-            customCursor = cursor;
+            if (typeof cursor === 'function') {
+                customCursor = cursor;
+            }
+            else {
+                customCursor = ctx => ctx.drawImage(cursor, 0, 0);
+            }
         } }
         Input.setCursor = setCursor;
         ;
-        function drawCursor(ctx, delta) { if (customCursor) {
+        function drawCursor(ctx, dT) { if (customCursor) {
             ctx.save();
             ctx.translate(Input.mouse.x, Input.mouse.y);
-            customCursor(ctx, delta);
+            customCursor(ctx, dT);
             ctx.restore();
         } }
         Input.drawCursor = drawCursor;
         ;
-        function setMouseListener(g, width, height, circular, centered) {
-            if (circular === void 0) { circular = false; }
-            if (centered === void 0) { centered = false; }
-            var x0, y0, x1, y1 = 0;
-            if (circular) {
-                x1 = y1 = width / 2;
-                if (!centered) {
-                    x0 = y0 = width / 2;
-                }
+        function setMouseListener(g, width, height, circular = false, centered = false) { let x0, y0, x1, y1 = 0; if (circular) {
+            x1 = y1 = width / 2;
+            if (!centered) {
+                x0 = y0 = width / 2;
             }
-            else if (centered) {
-                x0 = -width / 2;
-                x1 = width / 2;
-                y0 = -height / 2;
-                y1 = height / 2;
-            }
-            else {
-                x1 = width;
-                y1 = height;
-            }
-            clickableObjects.push({ obj: g, x0: x0, x1: x1, y0: y0, y1: y1, circ: circular });
         }
+        else if (centered) {
+            x0 = -width / 2;
+            x1 = width / 2;
+            y0 = -height / 2;
+            y1 = height / 2;
+        }
+        else {
+            x1 = width;
+            y1 = height;
+        } clickableObjects.push({ obj: g, x0: x0, x1: x1, y0: y0, y1: y1, circ: circular }); }
         Input.setMouseListener = setMouseListener;
         ;
-        function setMouseListenerFromSprite(g, sprite, centered) {
-            if (centered === void 0) { centered = false; }
-            setMouseListener(g, sprite.width, sprite.height, false, centered);
-        }
-        Input.setMouseListenerFromSprite = setMouseListenerFromSprite;
-        ;
-        function onMouseDown(e) { dragCheck.originX = e.clientX; dragCheck.originY = e.clientY; Input.mouse[CLICKCODE[e.button]].pressed = true; Input.mouse[CLICKCODE[e.button]].down = true; }
-        ;
-        function onMouseUp(e) { var b = Input.mouse[CLICKCODE[e.button]]; b.pressed = false; b.up = true; if (b.dragging) {
-            b.endDrag = true;
-            b.dragging = false;
-        } if (b.dblCheck) {
+        function onMouseDown(e) { let b = Input.mouse[CLICKCODE[e.button]]; dragCheck.originX = e.clientX; dragCheck.originY = e.clientY; b.pressed = true; b.down = true; if (b.dblCheck) {
             b.doubleUp = true;
             b.dblCheck = false;
         }
         else {
             b.dblCheck = true;
-            setTimeout(function () { return b.dblCheck = false; }, dblClickWait);
+            setTimeout(() => b.dblCheck = false, dblClickWait);
         } }
+        ;
+        function onMouseUp(e) { let b = Input.mouse[CLICKCODE[e.button]]; b.pressed = false; b.up = true; if (b.dragging) {
+            b.endDrag = true;
+            b.dragging = false;
+        } dragCheck.dragPts = []; }
         ;
         function onMouseMove(e) { Input.mouse.x = e.clientX; Input.mouse.y = e.clientY; checkDrag(Input.mouse.left); checkDrag(Input.mouse.right); }
         ;
         function checkDrag(b) { if (b.pressed) {
-            if (!b.dragging) {
-                if (Math.sqrt(Math.pow(Input.mouse.y - dragCheck.originY, 2) + Math.pow(Input.mouse.x - dragCheck.originX, 2)) > dragCheck.tolerance) {
+            if (b.dragging) {
+                b.drag = true;
+                b.dragPts.push({ x: Input.mouse.x, y: Input.mouse.y });
+            }
+            else {
+                if (Math.pow(Input.mouse.y - dragCheck.originY, 2) + Math.pow(Input.mouse.x - dragCheck.originX, 2) > dragCheck.tolerance) {
                     b.dragging = true;
-                    b.dragPts = [];
-                    dragCheck.dragPts.forEach(function (p) { return b.dragPts.push({ x: p.x, y: p.y }); });
-                    dragCheck.dragPts = [];
+                    b.drag = true;
+                    b.dragPts = dragCheck.dragPts.slice();
                 }
                 else {
                     dragCheck.dragPts.push({ x: Input.mouse.x, y: Input.mouse.y });
                 }
             }
-            else {
-                b.drag = true;
-                b.dragPts.push({ x: Input.mouse.x, y: Input.mouse.y });
-            }
         } }
-        ;
-        function resetMouseButton(b) { b.down = false; b.up = false; b.doubleUp = false; b.drag = false; b.startDrag = false; b.endDrag = false; }
         ;
         function onKeyDown(e) { Input.key.down = e.code; if (Input.key.pressed.indexOf(e.code) === -1) {
             Input.key.pressed.push(e.code);
@@ -2264,8 +2244,8 @@ define("Bunas", ["require", "exports"], function (require, exports) {
         ;
         function onKeyUp(e) { Input.key.up = e.code; Input.key.pressed.splice(Input.key.pressed.indexOf(e.code), 1); }
         ;
-        function emitClickableObjectEvents() { clickableObjects.forEach(function (o) { if (o.obj.onMouseOver) {
-            var clicked = void 0;
+        function emitClickableObjectEvents() { clickableObjects.forEach(o => { if (o.obj.onMouseOver) {
+            let clicked;
             if (o.circ) {
                 clicked = Math.sqrt(Math.pow(Input.mouse.y - (o.obj.y + o.y0), 2) + Math.pow(Input.mouse.x - (o.obj.x + o.x0), 2)) < o.x1;
             }
@@ -2280,15 +2260,14 @@ define("Bunas", ["require", "exports"], function (require, exports) {
     })(Input = exports.Input || (exports.Input = {}));
     var Light;
     (function (Light) {
-        var can0, ctx0, can1, ctx1, can2, ctx2;
-        function lightEngineInit() { can0 = document.createElement('canvas'); ctx0 = can0.getContext('2d'); can1 = document.createElement('canvas'); ctx1 = can1.getContext('2d'); can2 = document.createElement('canvas'); ctx2 = can2.getContext('2d'); can0.width = can1.width = can2.width = Engine.cW; can0.height = can1.height = can2.height = Engine.cH; ctx0.imageSmoothingEnabled = false; ctx1.imageSmoothingEnabled = false; ctx2.imageSmoothingEnabled = false; }
-        function angDiff(a0, a1) { var a = a0 - a1; a += (a > Math.PI) ? -2 * Math.PI : (a < -Math.PI) ? 2 * Math.PI : 0; return a; }
+        let can0, ctx0, can1, ctx1, can2, ctx2;
+        function lightEngineInit() { can0 = document.createElement('canvas'); can2 = document.createElement('canvas'); can1 = document.createElement('canvas'); can0.width = can1.width = can2.width = Engine.cW; can0.height = can1.height = can2.height = Engine.cH; ctx0 = can0.getContext('2d'); ctx1 = can1.getContext('2d'); ctx2 = can2.getContext('2d'); ctx0.imageSmoothingEnabled = false; ctx1.imageSmoothingEnabled = false; ctx2.imageSmoothingEnabled = false; }
+        function angDiff(a0, a1) { let a = a0 - a1; a += (a > Math.PI) ? -2 * Math.PI : (a < -Math.PI) ? 2 * Math.PI : 0; return a; }
         ;
         function getAng(x, y) { return (6.2832 + Math.atan2(y, x)) % 6.2832; }
         ;
-        var LightArea = (function () {
-            function LightArea(area, bgLight) {
-                if (bgLight === void 0) { bgLight = '#000'; }
+        class LightArea {
+            constructor(area, bgLight = '#000') {
                 this.area = area;
                 this.active = true;
                 this.sources = [];
@@ -2298,115 +2277,117 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 }
                 ctx0.fillStyle = bgLight;
             }
-            Object.defineProperty(LightArea.prototype, "bgLight", {
-                set: function (color) { ctx0.fillStyle = color; },
-                enumerable: true,
-                configurable: true
-            });
-            LightArea.prototype.addSource = function (source) {
-                var _this = this;
-                [].concat(source).forEach(function (s) { s.delete(); s.lightArea = _this; _this.sources.push(s); });
-            };
-            LightArea.prototype.addBlock = function (block) {
-                var _this = this;
-                [].concat(block).forEach(function (s) { s.delete(); s.lightArea = _this; _this.blocks.push(s); });
-            };
-            LightArea.prototype.draw = function (ctx) {
-                var _this = this;
-                if (!this.active) {
-                    return;
-                }
-                ctx1.clearRect(0, 0, can1.width, can1.height);
-                ctx2.save();
-                ctx2.scale(this.area.view.z, this.area.view.z);
-                ctx2.translate(-this.area.view.x, -this.area.view.y);
-                this.sources.filter(function (s) { return (s.active && s.x + s.rad > _this.area.view.x && s.x - s.rad < _this.area.view.x + _this.area.view.width && s.y + s.rad > _this.area.view.y && s.y - s.rad < _this.area.view.y + _this.area.view.height); }).forEach(function (source) { if (!source.castShadows) {
-                    ctx1.save();
-                    ctx1.scale(_this.area.view.z, _this.area.view.z);
-                    ctx1.translate(source.x - _this.area.view.x, source.y - _this.area.view.y);
-                    ctx1.rotate(source.ang);
-                    ctx1.globalCompositeOperation = 'soft-light';
-                    ctx1.drawImage(source.mask, -source.rad, -source.rad);
-                    ctx1.restore();
+            set bgLight(color) { ctx0.fillStyle = color; }
+            addSource(source) { [].concat(source).forEach(s => { s.delete(); s.lightArea = this; this.sources.push(s); }); }
+            addBlock(block) { [].concat(block).forEach(s => { s.delete(); s.lightArea = this; this.blocks.push(s); }); }
+            draw(ctx) { if (!this.active) {
+                return;
+            } this.sources.forEach(s => { if (s.bound) {
+                if (typeof s.bound.angOffset === 'undefined') {
+                    s.x = s.bound.obj.x + s.bound.xOffset;
+                    s.y = s.bound.obj.y + s.bound.yOffset;
                 }
                 else {
-                    var nearBlocks_1 = [], sourceInBlock_1 = false;
-                    _this.blocks.forEach(function (block) { var dis = Math.pow(block.x + block.maskCenter.x - source.x, 2) + Math.pow(block.y + block.maskCenter.y - source.y, 2); if (dis < Math.pow(source.rad + block.clipRad, 2)) {
-                        if (block.blockLightInside && dis < Math.pow(block.clipRad, 2)) {
-                            sourceInBlock_1 = true;
+                    let ang = s.bound.obj.ang + s.bound.angOffset;
+                    s.x = s.bound.obj.x + s.bound.xOffset + (Math.cos(ang) * s.bound.xCenter);
+                    s.y = s.bound.obj.y + s.bound.yOffset + (Math.sin(ang) * s.bound.yCenter);
+                    s.ang = ang;
+                }
+            } }); this.blocks.forEach(b => { if (b.bound.obj) {
+                b.x = b.bound.obj.x + b.bound.xOffset;
+                b.y = b.bound.obj.y + b.bound.yOffset;
+                if (typeof b.bound.angOffset === 'number') {
+                    b.ang = b.bound.obj.ang + b.bound.angOffset;
+                }
+            } }); ctx1.clearRect(0, 0, can1.width, can1.height); ctx2.save(); ctx2.scale(this.area.view.z, this.area.view.z); ctx2.translate(-this.area.view.x, -this.area.view.y); this.sources.filter(s => (s.active && s.x + s.rad > this.area.view.x && s.x - s.rad < this.area.view.x + this.area.view.width && s.y + s.rad > this.area.view.y && s.y - s.rad < this.area.view.y + this.area.view.height)).forEach(source => { if (!source.castShadows) {
+                ctx1.save();
+                ctx1.scale(this.area.view.z, this.area.view.z);
+                ctx1.translate(source.x - this.area.view.x, source.y - this.area.view.y);
+                ctx1.rotate(source.ang);
+                ctx1.globalCompositeOperation = 'soft-light';
+                ctx1.drawImage(source.mask, -source.rad, -source.rad);
+                ctx1.restore();
+            }
+            else {
+                let nearBlocks = [], sourceInBlock = false;
+                this.blocks.forEach(block => { let dis = Math.pow(block.x + block.bound.xCenter - source.x, 2) + Math.pow(block.y + block.bound.yCenter - source.y, 2); if (dis < Math.pow(source.rad + block.clipRad, 2)) {
+                    if (block.blockLightInside && dis < Math.pow(block.clipRad, 2)) {
+                        sourceInBlock = true;
+                    }
+                    for (let i = 0; i <= nearBlocks.length; i++) {
+                        if (i === nearBlocks.length) {
+                            nearBlocks.push([block, dis]);
+                            break;
                         }
-                        for (var i = 0; i <= nearBlocks_1.length; i++) {
-                            if (i === nearBlocks_1.length) {
-                                nearBlocks_1.push([block, dis]);
-                                break;
-                            }
-                            if (dis > nearBlocks_1[i][1]) {
-                                nearBlocks_1.splice(i, 0, [block, dis]);
-                                break;
-                            }
+                        if (dis > nearBlocks[i][1]) {
+                            nearBlocks.splice(i, 0, [block, dis]);
+                            break;
                         }
-                    } });
-                    if (!sourceInBlock_1) {
-                        ctx2.save();
-                        ctx2.translate(source.x, source.y);
-                        ctx2.rotate(source.ang);
-                        ctx2.globalCompositeOperation = 'source-over';
-                        ctx2.drawImage(source.mask, -source.rad, -source.rad);
-                        ctx2.restore();
-                        nearBlocks_1.map(function (b) { return b[0]; }).forEach(function (block) { var corners = []; if (block.mask) {
-                            var poly = block.mask.map(function (m) { return { x: m.x + block.x - source.x, y: m.y + block.y - source.y }; }), diff = 3.1416 - getAng(block.x + block.maskCenter.x - source.x, block.y + block.maskCenter.y - source.y), sAng_1 = Math.sin(diff), cAng_1 = Math.cos(diff), max_1 = 3.1416, min_1 = 3.1416, maxP_1, minP_1;
-                            poly.forEach(function (p) { var a = getAng((p.x * cAng_1) - (p.y * sAng_1), (p.x * sAng_1) + (p.y * cAng_1)); if (a > max_1) {
-                                max_1 = a;
-                                maxP_1 = p;
-                            }
-                            else if (a < min_1) {
-                                min_1 = a;
-                                minP_1 = p;
-                            } });
-                            corners.push({ x: minP_1.x + source.x, y: minP_1.y + source.y }, { x: maxP_1.x + source.x, y: maxP_1.y + source.y });
-                        }
-                        else {
-                            var angDiff_1 = getAng(block.x - source.x, block.y - source.y);
-                            corners.push({ x: block.x + (Math.cos(angDiff_1 - (Math.PI / 2)) * block.clipRad), y: block.y + (Math.sin(angDiff_1 - (Math.PI / 2)) * block.clipRad) }, { x: block.x + (Math.cos(angDiff_1 + (Math.PI / 2)) * block.clipRad), y: block.y + (Math.sin(angDiff_1 + (Math.PI / 2)) * block.clipRad) });
-                        } var ang = Math.atan2(corners[1].y - source.y, corners[1].x - source.x); corners.push({ x: source.x + (source.rad * Math.cos(ang)), y: source.y + (source.rad * Math.sin(ang)) }); ang = Math.atan2(corners[0].y - source.y, corners[0].x - source.x); corners.push({ x: source.x + source.rad * Math.cos(ang), y: source.y + source.rad * Math.sin(ang) }); ctx2.beginPath(); ctx2.moveTo(corners[0].x, corners[0].y); ctx2.lineTo(corners[1].x, corners[1].y); ctx2.lineTo(corners[2].x, corners[2].y); ctx2.lineTo(corners[3].x, corners[3].y); var ang0 = Math.atan2(corners[2].y - source.y, corners[2].x - source.x); var ang1 = Math.atan2(corners[3].y - source.y, corners[3].x - source.x); ctx2.arc(source.x, source.y, source.rad, ang0, ang1, angDiff(ang0, ang1) > 0); ctx2.lineTo(corners[0].x, corners[0].y); ctx2.fillStyle = block.translucentColor; ctx2.globalCompositeOperation = 'destination-out'; ctx2.fill(); if (block.translucentColor === '#000') {
-                            ctx2.save();
-                            block.spriteMask(ctx2);
-                            ctx2.restore();
-                        } ctx2.globalCompositeOperation = 'source-atop'; ctx2.fill(); });
-                        ctx1.globalCompositeOperation = 'lighter';
-                        ctx1.drawImage(can2, 0, 0);
-                        ctx2.save();
-                        ctx2.setTransform(1, 0, 0, 1, 0, 0);
-                        ctx2.clearRect(0, 0, can2.width, can2.height);
-                        ctx2.restore();
                     }
                 } });
-                ctx2.restore();
-                ctx0.globalCompositeOperation = 'source-over';
-                ctx0.clearRect(0, 0, can0.width, can0.height);
-                ctx0.fillRect(0, 0, can0.width, can0.height);
-                ctx0.globalCompositeOperation = 'destination-out';
-                ctx0.drawImage(can1, 0, 0);
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.drawImage(can0, 0, 0);
-                ctx.globalCompositeOperation = 'lighter';
-                ctx.drawImage(can1, 0, 0);
-                ctx.globalCompositeOperation = 'source-over';
-            };
-            return LightArea;
-        }());
+                if (!sourceInBlock) {
+                    ctx2.save();
+                    ctx2.translate(source.x, source.y);
+                    ctx2.rotate(source.ang);
+                    ctx2.globalCompositeOperation = 'source-over';
+                    ctx2.drawImage(source.mask, -source.rad, -source.rad);
+                    ctx2.restore();
+                    nearBlocks.map(b => b[0]).forEach(block => { let corners = []; if (block.mask) {
+                        let poly = block.mask.map(m => { return { x: m.x + block.x - source.x, y: m.y + block.y - source.y }; }), diff = 3.1416 - getAng(block.x + block.bound.xCenter - source.x, block.y + block.bound.yCenter - source.y), sAng = Math.sin(diff), cAng = Math.cos(diff), max = 3.1416, min = 3.1416, maxP, minP;
+                        poly.forEach(p => { let a = getAng((p.x * cAng) - (p.y * sAng), (p.x * sAng) + (p.y * cAng)); if (a > max) {
+                            max = a;
+                            maxP = p;
+                        }
+                        else if (a < min) {
+                            min = a;
+                            minP = p;
+                        } });
+                        corners.push({ x: minP.x + source.x, y: minP.y + source.y }, { x: maxP.x + source.x, y: maxP.y + source.y });
+                    }
+                    else {
+                        let angDiff = getAng(block.x - source.x, block.y - source.y);
+                        corners.push({ x: block.x + (Math.cos(angDiff - (Math.PI / 2)) * block.clipRad), y: block.y + (Math.sin(angDiff - (Math.PI / 2)) * block.clipRad) }, { x: block.x + (Math.cos(angDiff + (Math.PI / 2)) * block.clipRad), y: block.y + (Math.sin(angDiff + (Math.PI / 2)) * block.clipRad) });
+                    } let ang = Math.atan2(corners[1].y - source.y, corners[1].x - source.x); corners.push({ x: source.x + (source.rad * Math.cos(ang)), y: source.y + (source.rad * Math.sin(ang)) }); ang = Math.atan2(corners[0].y - source.y, corners[0].x - source.x); corners.push({ x: source.x + source.rad * Math.cos(ang), y: source.y + source.rad * Math.sin(ang) }); ctx2.beginPath(); ctx2.moveTo(corners[0].x, corners[0].y); ctx2.lineTo(corners[1].x, corners[1].y); ctx2.lineTo(corners[2].x, corners[2].y); ctx2.lineTo(corners[3].x, corners[3].y); let ang0 = Math.atan2(corners[2].y - source.y, corners[2].x - source.x); let ang1 = Math.atan2(corners[3].y - source.y, corners[3].x - source.x); ctx2.arc(source.x, source.y, source.rad, ang0, ang1, angDiff(ang0, ang1) > 0); ctx2.lineTo(corners[0].x, corners[0].y); ctx2.fillStyle = block.translucentColor; ctx2.globalCompositeOperation = 'destination-out'; ctx2.fill(); if (block.translucentColor === '#000') {
+                        block.spriteMask.draw(ctx2);
+                    }
+                    else {
+                        block.spriteMask.draw();
+                        block.spriteMask.ctx.save();
+                        block.spriteMask.ctx.translate(-block.x, -block.y);
+                        block.spriteMask.ctx.beginPath();
+                        block.spriteMask.ctx.moveTo(corners[0].x, corners[0].y);
+                        block.spriteMask.ctx.lineTo(corners[1].x, corners[1].y);
+                        block.spriteMask.ctx.lineTo(corners[2].x, corners[2].y);
+                        block.spriteMask.ctx.lineTo(corners[3].x, corners[3].y);
+                        block.spriteMask.ctx.arc(source.x, source.y, source.rad, ang0, ang1, angDiff(ang0, ang1) > 0);
+                        block.spriteMask.ctx.lineTo(corners[0].x, corners[0].y);
+                        block.spriteMask.ctx.fillStyle = '#000';
+                        block.spriteMask.ctx.globalCompositeOperation = 'destination-out';
+                        block.spriteMask.ctx.fill();
+                        block.spriteMask.ctx.restore();
+                        ctx2.drawImage(block.spriteMask.can, block.x - (block.clipRad / 4), block.y - (block.clipRad / 4));
+                        ctx2.globalCompositeOperation = 'source-atop';
+                        ctx2.fill();
+                        ctx2.drawImage(block.spriteMask.can, block.x - (block.clipRad / 4), block.y - (block.clipRad / 4));
+                    } });
+                    ctx1.globalCompositeOperation = 'lighter';
+                    ctx1.drawImage(can2, 0, 0);
+                    ctx2.save();
+                    ctx2.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx2.clearRect(0, 0, can2.width, can2.height);
+                    ctx2.restore();
+                }
+            } }); ctx2.restore(); ctx0.globalCompositeOperation = 'source-over'; ctx0.clearRect(0, 0, can0.width, can0.height); ctx0.fillRect(0, 0, can0.width, can0.height); ctx0.globalCompositeOperation = 'destination-out'; ctx0.drawImage(can1, 0, 0); ctx.globalCompositeOperation = 'source-over'; ctx.drawImage(can0, 0, 0); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(can1, 0, 0); ctx.globalCompositeOperation = 'source-over'; }
+        }
         Light.LightArea = LightArea;
-        var Source = (function () {
-            function Source(x, y, rad, color, castShadows, arc, edgeBlur) {
-                if (color === void 0) { color = '#fff'; }
-                if (castShadows === void 0) { castShadows = true; }
-                if (arc === void 0) { arc = 6.2832; }
-                if (edgeBlur === void 0) { edgeBlur = 0; }
+        class Source extends Bindable {
+            constructor(x, y, rad, color = '#fff', castShadows = true, arc = 6.2832, edgeBlur = 0) {
+                super();
                 this.x = x;
                 this.y = y;
                 this.castShadows = castShadows;
-                this.active = true;
                 this.ang = 0;
+                this.active = true;
                 this._rad = rad;
                 this._arc = arc;
                 this._edgeBlur = edgeBlur;
@@ -2421,57 +2402,37 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 World.area.light.addSource(this);
                 this.lightArea = World.area.light;
             }
-            Object.defineProperty(Source.prototype, "rad", {
-                get: function () { return this._rad; },
-                set: function (newRad) { if (newRad < 1) {
-                    this._rad = 1;
-                    this.active = false;
-                }
-                else if (newRad !== this._rad) {
-                    this._rad = newRad;
-                    this.active = true;
-                    this.mask.width = this.mask.height = newRad * 2;
-                    this.setMask();
-                } },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Source.prototype, "opacity", {
-                get: function () { return parseInt(this._color.substr(7, 2), 16) / 255; },
-                set: function (val) { var val16 = Math.floor(Math.max(0, Math.min(1, val)) * 255).toString(16); this.color = this._color.substring(0, 7) + (val16.length === 1 ? '0' + val16 : val16); },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Source.prototype, "color", {
-                get: function () { return this._color; },
-                set: function (val) { if (val.length === 4) {
-                    val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
-                }
-                else if (val.length === 5) {
-                    val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3] + val[4] + val[4];
-                } if (val.length === 7) {
-                    val += 'ff';
-                } this._color = val; this.transColor = val.substring(0, 7) + '00'; this.setMask(); },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Source.prototype, "arc", {
-                set: function (newArc) { if (newArc !== this._arc) {
-                    this._arc = newArc;
-                    this.setMask();
-                } },
-                enumerable: true,
-                configurable: true
-            });
-            Object.defineProperty(Source.prototype, "edgeBlur", {
-                set: function (newBlur) { if (newBlur !== this._edgeBlur) {
-                    this._edgeBlur = newBlur;
-                    this.setMask();
-                } },
-                enumerable: true,
-                configurable: true
-            });
-            Source.prototype.setMask = function () { this.maskCtx.save(); this.maskCtx.translate(this._rad, this._rad); if (this.customMask) {
+            get rad() { return this._rad; }
+            set rad(newRad) { if (newRad < 1) {
+                this._rad = 1;
+                this.active = false;
+            }
+            else if (newRad !== this._rad) {
+                this._rad = newRad;
+                this.active = true;
+                this.mask.width = this.mask.height = newRad * 2;
+                this.setMask();
+            } }
+            get opacity() { return parseInt(this._color.substr(7, 2), 16) / 255; }
+            set opacity(val) { let val16 = Math.floor(Math.max(0, Math.min(1, val)) * 255).toString(16); this.color = this._color.substring(0, 7) + (val16.length === 1 ? '0' + val16 : val16); }
+            get color() { return this._color; }
+            set color(val) { if (val.length === 4) {
+                val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+            }
+            else if (val.length === 5) {
+                val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3] + val[4] + val[4];
+            } if (val.length === 7) {
+                val += 'ff';
+            } this._color = val; this.transColor = val.substring(0, 7) + '00'; this.setMask(); }
+            set arc(newArc) { if (newArc !== this._arc) {
+                this._arc = newArc;
+                this.setMask();
+            } }
+            set edgeBlur(newBlur) { if (newBlur !== this._edgeBlur) {
+                this._edgeBlur = newBlur;
+                this.setMask();
+            } }
+            setMask() { this.maskCtx.save(); this.maskCtx.translate(this._rad, this._rad); if (this.customMask) {
                 this.customMask(this.maskCtx, this._rad, this._color);
             }
             else {
@@ -2480,11 +2441,11 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 this.maskCtx.arc(0, 0, this._rad, this._arc / -2, this._arc / 2);
                 this.maskCtx.lineTo(0, 0);
                 if (this._arc < 6.282 && this._edgeBlur > 0) {
-                    var blurX = Math.asin(this._arc / 2) * this._edgeBlur, blurY = Math.acos(this._arc / 2) * this._edgeBlur;
-                    var grdLinTop = this.maskCtx.createLinearGradient(0, 0, blurX, blurY);
+                    let blurX = Math.asin(this._arc / 2) * this._edgeBlur, blurY = Math.acos(this._arc / 2) * this._edgeBlur;
+                    let grdLinTop = this.maskCtx.createLinearGradient(0, 0, blurX, blurY);
                     grdLinTop.addColorStop(0, this.transColor);
                     grdLinTop.addColorStop(1, this._color);
-                    var grdLinBtm = this.maskCtx.createLinearGradient(0, 0, blurX, -blurY);
+                    let grdLinBtm = this.maskCtx.createLinearGradient(0, 0, blurX, -blurY);
                     grdLinBtm.addColorStop(0, this.transColor);
                     grdLinBtm.addColorStop(1, this._color);
                     this.maskCtx.fillStyle = grdLinTop;
@@ -2493,27 +2454,24 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                     this.maskCtx.fillStyle = grdLinBtm;
                     this.maskCtx.fill();
                 }
-                var grdRad = this.maskCtx.createRadialGradient(0, 0, 0, 0, 0, this._rad);
+                let grdRad = this.maskCtx.createRadialGradient(0, 0, 0, 0, 0, this._rad);
                 grdRad.addColorStop(0, this._color);
                 grdRad.addColorStop(1, this.transColor);
                 this.maskCtx.fillStyle = grdRad;
                 this.maskCtx.fill();
-            } this.maskCtx.restore(); };
-            Source.prototype.delete = function () { if (this.lightArea) {
+            } this.maskCtx.restore(); }
+            delete() { if (this.lightArea) {
                 this.lightArea.sources.splice(this.lightArea.sources.indexOf(this), 1);
-            } this.lightArea = null; };
-            return Source;
-        }());
+            } this.lightArea = null; }
+        }
         Light.Source = Source;
-        var Block = (function () {
-            function Block(x, y, mask, spriteMask, blockLightInside, translucentColor) {
-                if (blockLightInside === void 0) { blockLightInside = false; }
-                if (translucentColor === void 0) { translucentColor = '#000'; }
-                var _this = this;
+        class Block extends Bindable {
+            constructor(x, y, mask, spriteMask, blockLightInside = false, translucentColor = '#000') {
+                super();
                 this.x = x;
                 this.y = y;
                 this.blockLightInside = blockLightInside;
-                this.translucentColor = translucentColor;
+                this.spriteMask = { draw: null, mask: null };
                 this._ang = 0;
                 if (!World.area.light) {
                     console.error('Bunas Error - Light: Tried to add Block before calling Area.toggleLight().');
@@ -2523,194 +2481,154 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 this.lightArea = World.area.light;
                 if (typeof mask === 'number') {
                     this.clipRad = mask;
+                    this.bound = { obj: null, xOffset: 0, yOffset: 0, xCenter: mask, yCenter: mask };
                 }
                 else {
                     if (!Array.isArray(mask)) {
-                        var w = mask.width / 2, h = mask.height / 2;
+                        let w = mask.width / 2, h = mask.height / 2;
                         mask = [{ x: this.x - w, y: this.y - h }, { x: this.x + w, y: this.y - h }, { x: this.x + w, y: this.y + h }, { x: this.x - w, y: this.y + h }];
                     }
                     this.mask = mask;
-                    var minX = this.mask.reduce(function (min, p) { return Math.min(min, p.x); }, this.mask[0].x), maxX = this.mask.reduce(function (max, p) { return Math.max(max, p.x); }, this.mask[0].x), minY = this.mask.reduce(function (min, p) { return Math.min(min, p.y); }, this.mask[0].y), maxY = this.mask.reduce(function (max, p) { return Math.max(max, p.y); }, this.mask[0].y);
+                    let minX = this.mask.reduce((min, p) => Math.min(min, p.x), this.mask[0].x), maxX = this.mask.reduce((max, p) => Math.max(max, p.x), this.mask[0].x), minY = this.mask.reduce((min, p) => Math.min(min, p.y), this.mask[0].y), maxY = this.mask.reduce((max, p) => Math.max(max, p.y), this.mask[0].y);
                     this.clipRad = Math.sqrt(Math.pow(maxX - minX, 2) + Math.pow(maxY - minY, 2)) / 2;
-                    this.maskCenter = { x: minX + ((maxX - minX) / 2), y: minY + ((maxY - minY) / 2) };
+                    this.bound = { obj: null, xOffset: 0, yOffset: 0, xCenter: minX + ((maxX - minX) / 2), yCenter: minY + ((maxY - minY) / 2) };
                 }
-                if (typeof spriteMask === 'undefined') {
-                    if (typeof this.mask === 'number') {
-                        this.spriteMask = function (ctx) { ctx.beginPath(); ctx.arc(_this.x, _this.y, _this.clipRad, 0, Math.PI * 2); ctx.fill(); };
+                this._transColor = translucentColor;
+                this.spriteMask.mask = spriteMask;
+                this.setSpriteMask();
+            }
+            setSpriteMask() { if (this._transColor === '#000' && this.spriteMask.mask) {
+                this.spriteMask.draw = this.spriteMask.mask;
+            }
+            else {
+                if (!this.spriteMask.can) {
+                    this.spriteMask.can = document.createElement('canvas');
+                    this.spriteMask.ctx = this.spriteMask.can.getContext('2d');
+                }
+                let sCan = this.spriteMask.can, sCtx = this.spriteMask.ctx;
+                sCan.width = sCan.height = this.clipRad * 2.5;
+                sCtx.translate(this.clipRad / 4, this.clipRad / 4);
+                sCtx.fillStyle = this._transColor;
+                if (typeof this.spriteMask.mask === 'undefined') {
+                    this.spriteMask.draw = () => { sCtx.save(); sCtx.clearRect(-this.clipRad / 4, -this.clipRad / 4, sCan.width, sCan.height); sCtx.translate(-this.x, -this.y); sCtx.beginPath(); if (this.mask) {
+                        this.mask.forEach(p => sCtx.lineTo(p.x, p.y));
                     }
                     else {
-                        this.spriteMask = function (ctx) { ctx.translate(_this.x, _this.y); ctx.rotate(_this._ang); ctx.beginPath(); _this.mask.forEach(function (p) { return ctx.lineTo(p.x, p.y); }); ctx.closePath(); ctx.fill(); };
-                    }
-                }
-                else if (typeof spriteMask === 'function') {
-                    this.spriteMask = spriteMask;
+                        sCtx.arc(this.x, this.y, this.clipRad, 0, Math.PI * 2);
+                    } sCtx.closePath(); sCtx.fill(); sCtx.restore(); };
                 }
                 else {
-                    this.spriteMask = function (ctx) { ctx.save(); ctx.translate(_this.x, _this.y); ctx.rotate(_this._ang); ctx.drawImage(spriteMask, _this.x, _this.y); ctx.restore(); };
+                    this.spriteMask.draw = () => { sCtx.save(); sCtx.clearRect(-this.clipRad / 4, -this.clipRad / 4, sCan.width, sCan.height); sCtx.translate(-this.x, -this.y); this.spriteMask.mask(sCtx); sCtx.restore(); sCtx.globalCompositeOperation = 'source-in'; sCtx.fillRect(-this.clipRad / 4, -this.clipRad / 4, sCan.width, sCan.height); sCtx.globalCompositeOperation = 'source-over'; };
                 }
-            }
-            Object.defineProperty(Block.prototype, "ang", {
-                get: function () { return this._ang; },
-                set: function (newVal) {
-                    var _this = this;
-                    if (newVal !== this._ang) {
-                        if (this.mask) {
-                            var xDiff_1 = Math.cos(newVal - this._ang), yDiff_1 = Math.sin(newVal - this._ang);
-                            this.mask.forEach(function (p) { p.x -= _this.maskCenter.x, p.y -= _this.maskCenter.y; var newX = (p.x * xDiff_1) - (p.y * yDiff_1), newY = (p.x * yDiff_1) + (p.y * xDiff_1); p.x = newX + _this.maskCenter.x; p.y = newY + _this.maskCenter.y; });
-                        }
-                        this._ang = newVal;
-                    }
-                },
-                enumerable: true,
-                configurable: true
-            });
-            Block.prototype.delete = function () { if (this.lightArea) {
+            } }
+            get translucentColor() { return this._transColor; }
+            set translucentColor(newCol) { if (newCol !== this.translucentColor) {
+                this._transColor = newCol;
+                this.setSpriteMask();
+            } }
+            get ang() { return this._ang; }
+            set ang(newVal) { if (newVal !== this._ang) {
+                if (this.mask) {
+                    let xDiff = Math.cos(newVal - this._ang), yDiff = Math.sin(newVal - this._ang);
+                    this.mask.forEach(p => { p.x -= this.bound.xCenter, p.y -= this.bound.yCenter; let newX = (p.x * xDiff) - (p.y * yDiff), newY = (p.x * yDiff) + (p.y * xDiff); p.x = newX + this.bound.xCenter; p.y = newY + this.bound.yCenter; });
+                }
+                this._ang = newVal;
+            } }
+            delete() { if (this.lightArea) {
                 this.lightArea.blocks.splice(this.lightArea.blocks.indexOf(this), 1);
-            } this.lightArea = null; };
-            return Block;
-        }());
+            } this.lightArea = null; }
+        }
         Light.Block = Block;
     })(Light = exports.Light || (exports.Light = {}));
     var Matter;
     (function (Matter) {
-        var M = MatterJs, mainEng;
-        function init(topDown) {
-            if (topDown === void 0) { topDown = false; }
-            mainEng = M.Engine.create();
-            if (topDown) {
-                mainEng.world.gravity.y = 0;
-            }
-            M.Engine.run(mainEng);
-        }
+        let M = MatterJs, mainEng;
+        function init(topDown = false) { mainEng = M.Engine.create(); if (topDown) {
+            mainEng.world.gravity.y = 0;
+        } M.Engine.run(mainEng); }
         Matter.init = init;
         ;
-        Matter.Query = { ray: function (area, start, end, width) {
-                if (width === void 0) { width = 1; }
-                return area.objs.filter(function (b) { return b instanceof BodyBase && M.Query.ray([b.body], start, end, width); }).map(function (b) { return b; });
-            } };
-        var BodyBase = (function (_super) {
-            __extends(BodyBase, _super);
-            function BodyBase(body) {
-                var _this = _super.call(this, body.position.x, body.position.y) || this;
-                _this.body = body;
+        Matter.Query = { ray: function (area, start, end, width = 1) { return area.objs.filter(b => b instanceof BodyBase && M.Query.ray([b.body], start, end, width)).map(b => b); } };
+        class BodyBase extends GameObject {
+            constructor(body) {
+                super(body.position.x, body.position.y);
+                this.body = body;
                 M.World.add(mainEng.world, body);
-                return _this;
             }
-            BodyBase.prototype.delete = function () { M.World.remove(mainEng.world, this.body); _super.prototype.delete.call(this); };
-            BodyBase.prototype.rotate = function (ang, p) { M.Body.rotate(this.body, ang, p); };
-            BodyBase.prototype.scale = function (x, y, p) { M.Body.scale(this.body, x, y, p); };
-            BodyBase.prototype.translate = function (v, y) { if (typeof v === 'number') {
+            delete() { M.World.remove(mainEng.world, this.body); super.delete(); }
+            rotate(ang, p) { M.Body.rotate(this.body, ang, p); }
+            scale(x, y, p) { M.Body.scale(this.body, x, y, p); }
+            translate(v, y) { if (typeof v === 'number') {
                 v = M.Vector.create(v, y);
-            } M.Body.translate(this.body, v); };
-            BodyBase.prototype.applyForce = function (f, p) { M.Body.applyForce(this.body, p || this.body.position, f); };
-            BodyBase.prototype.setProp = function (p, v) { if (typeof p === 'string') {
+            } M.Body.translate(this.body, v); }
+            applyForce(f, p) { M.Body.applyForce(this.body, p || this.body.position, f); }
+            setProp(p, v) { if (typeof p === 'string') {
                 M.Body.set(this.body, p, v);
             }
             else {
-                for (var prop in p) {
+                for (let prop in p) {
                     M.Body.set(this.body, prop, p[prop]);
                 }
-            } };
-            BodyBase.prototype.collisions = function (bodies) {
-                var _this = this;
-                if (!bodies) {
-                    bodies = this.area.objs.filter(function (b) { return b instanceof BodyBase && b !== _this; }).map(function (b) { return b; });
-                }
-                return bodies.filter(function (b) { return M.Query.collides(_this.body, [b.body]).length; });
-            };
-            Object.defineProperty(BodyBase.prototype, "ang", {
-                get: function () { return this.body.angle; },
-                enumerable: true,
-                configurable: true
-            });
-            ;
-            Object.defineProperty(BodyBase.prototype, "x", {
-                get: function () { return this.body.position.x; },
-                set: function (v) { this.body ? M.Body.setPosition(this.body, { x: v, y: this.body.position.y }) : ''; },
-                enumerable: true,
-                configurable: true
-            });
-            ;
-            ;
-            Object.defineProperty(BodyBase.prototype, "y", {
-                get: function () { return this.body.position.y; },
-                set: function (v) { this.body ? M.Body.setPosition(this.body, { x: this.body.position.x, y: v }) : ''; },
-                enumerable: true,
-                configurable: true
-            });
-            ;
-            ;
-            return BodyBase;
-        }(GameObject));
+            } }
+            collisions(bodies) { if (!bodies) {
+                bodies = this.area.objs.filter(b => b instanceof BodyBase && b !== this).map(b => b);
+            } return bodies.filter(b => M.Query.collides(this.body, [b.body]).length); }
+        }
         ;
-        var Rect = (function (_super) {
-            __extends(Rect, _super);
-            function Rect(x, y, w, h) {
-                var _this = _super.call(this, M.Bodies.rectangle(x, y, w, h || w, { frictionAir: 0 })) || this;
-                _this.w = w;
-                _this.h = h;
-                if (typeof _this.h === 'undefined') {
-                    _this.h = _this.w;
+        class Rect extends BodyBase {
+            constructor(x, y, w, h) {
+                super(M.Bodies.rectangle(x, y, w, h || w, { frictionAir: 0 }));
+                this.w = w;
+                this.h = h;
+                if (typeof this.h === 'undefined') {
+                    this.h = this.w;
                 }
-                return _this;
             }
-            Rect.prototype.draw = function (ctx) { ctx.translate(this.x - (this.w / 2), this.y - (this.h / 2)); ctx.rotate(this.ang); ctx.fillRect(0, 0, this.w, this.h); };
-            return Rect;
-        }(BodyBase));
+            draw(ctx) { ctx.translate(this.x - (this.w / 2), this.y - (this.h / 2)); ctx.rotate(this.ang); ctx.fillRect(0, 0, this.w, this.h); }
+        }
         Matter.Rect = Rect;
         ;
-        var Circ = (function (_super) {
-            __extends(Circ, _super);
-            function Circ(x, y, r) {
-                var _this = _super.call(this, M.Bodies.circle(x, y, r, { frictionAir: 0 })) || this;
-                _this.r = r;
-                return _this;
+        class Circ extends BodyBase {
+            constructor(x, y, r) {
+                super(M.Bodies.circle(x, y, r, { frictionAir: 0 }));
+                this.r = r;
             }
-            Circ.prototype.draw = function (ctx) { ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2); ctx.fill(); };
-            return Circ;
-        }(BodyBase));
+            draw(ctx) { ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2); ctx.fill(); }
+        }
         Matter.Circ = Circ;
         ;
     })(Matter = exports.Matter || (exports.Matter = {}));
     var Physics;
     (function (Physics) {
         Physics.GRAV = 41.18, Physics.TAU = 6.2832;
-        var globalCtx;
-        var Vec = (function () {
-            function Vec(xm, ya, polar) {
-                if (xm === void 0) { xm = 1; }
-                if (ya === void 0) { ya = 0; }
-                if (polar === void 0) { polar = false; }
-                if (polar) {
-                    this.setMagAng(xm, ya);
-                }
-                else {
-                    this.x = xm;
-                    this.y = ya;
-                }
+        let globalCtx;
+        class Vec {
+            constructor(xm = 1, ya = 0, polar = false) { if (polar) {
+                this.setMagAng(xm, ya);
             }
-            Vec.prototype.setAng = function (rad) { var mag = this.getMag(); this.x = Math.cos(rad) * mag; this.y = Math.sin(rad) * mag; };
-            Vec.prototype.setMagAng = function (mag, ang) { this.x = Math.cos(ang) * mag; this.y = Math.sin(ang) * mag; };
-            Vec.prototype.getAng = function () { return Math.atan2(this.y, this.x); };
-            Vec.getAng = function (v) { return Math.atan2(v.y, v.x); };
-            Vec.prototype.getMag = function () { return Math.sqrt((this.x * this.x) + (this.y * this.y)); };
-            Vec.getMag = function (v) { return Math.sqrt((v.x * v.x) + (v.y * v.y)); };
-            Vec.prototype.getNorm = function () { var ang = this.getAng(); return new Vec(Math.cos(ang), Math.sin(ang)); };
-            Vec.prototype.add = function (v) { return new Vec(this.x + v.x, this.y + v.y); };
-            Vec.prototype.sub = function (v) { return new Vec(this.x - v.x, this.y - v.y); };
-            Vec.prototype.scale = function (s) { return new Vec(this.x * s, this.y * s); };
-            Vec.prototype.dot = function (v) { return (this.x * v.x) + (this.y * v.y); };
-            Vec.prototype.dis = function (v) { var a = (v.x - this.x) * (v.x - this.x); var b = (v.y - this.y) * (v.y - this.y); return Math.sqrt(a + b); };
-            Vec.prototype.angWith = function (v) { return Math.atan2(v.y - this.y, v.x - this.x); };
-            Vec.prototype.toString = function () { var pos = '<' + Math.round(this.x) + ', ' + Math.round(this.y) + '>'; var mag = Math.round(this.getMag() * 100) / 100; var angR = Math.round(this.getAng() * 100) / 1000; var angD = Math.round(angR * (180 / Math.PI)); return ('Pos: ' + pos + '\nMag: ' + mag + '\nAng: ' + angR + ' rads / ' + angD + '°'); };
-            Vec.prototype.clone = function () { return new Vec(this.x, this.y); };
-            return Vec;
-        }());
+            else {
+                this.x = xm;
+                this.y = ya;
+            } }
+            setAng(rad) { let mag = this.getMag(); this.x = Math.cos(rad) * mag; this.y = Math.sin(rad) * mag; }
+            setMagAng(mag, ang) { this.x = Math.cos(ang) * mag; this.y = Math.sin(ang) * mag; }
+            getAng() { return Math.atan2(this.y, this.x); }
+            static getAng(v) { return Math.atan2(v.y, v.x); }
+            getMag() { return Math.sqrt((this.x * this.x) + (this.y * this.y)); }
+            static getMag(v) { return Math.sqrt((v.x * v.x) + (v.y * v.y)); }
+            getNorm() { let ang = this.getAng(); return new Vec(Math.cos(ang), Math.sin(ang)); }
+            add(v) { return new Vec(this.x + v.x, this.y + v.y); }
+            sub(v) { return new Vec(this.x - v.x, this.y - v.y); }
+            scale(s) { return new Vec(this.x * s, this.y * s); }
+            dot(v) { return (this.x * v.x) + (this.y * v.y); }
+            dis(v) { let a = (v.x - this.x) * (v.x - this.x); let b = (v.y - this.y) * (v.y - this.y); return Math.sqrt(a + b); }
+            angWith(v) { return Math.atan2(v.y - this.y, v.x - this.x); }
+            toString() { let pos = '<' + Math.round(this.x) + ', ' + Math.round(this.y) + '>'; let mag = Math.round(this.getMag() * 100) / 100; let angR = Math.round(this.getAng() * 100) / 1000; let angD = Math.round(angR * (180 / Math.PI)); return ('Pos: ' + pos + '\nMag: ' + mag + '\nAng: ' + angR + ' rads / ' + angD + '°'); }
+            clone() { return new Vec(this.x, this.y); }
+        }
         Physics.Vec = Vec;
-        var Context = (function () {
-            function Context(fric, gravity) {
-                if (fric === void 0) { fric = 0; }
-                if (gravity === void 0) { gravity = false; }
+        class Context {
+            constructor(fric = 0, gravity = false) {
                 this.fric = fric;
                 this.objs = [];
                 if (gravity === true) {
@@ -2723,37 +2641,32 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                     this.grav = gravity;
                 }
             }
-            Context.prototype.addParticle = function (p) { this.objs.push(p); p.phyCtx = this; return p; };
-            return Context;
-        }());
+            addParticle(p) { this.objs.push(p); p.phyCtx = this; return p; }
+        }
         Physics.Context = Context;
-        var Particle = (function (_super) {
-            __extends(Particle, _super);
-            function Particle(x, y, rad, fric, el, m) {
-                if (fric === void 0) { fric = 0; }
-                if (el === void 0) { el = 0.5; }
-                if (m === void 0) { m = rad / 2; }
-                var _this = _super.call(this, x, y, 0, rad) || this;
-                _this.x = x;
-                _this.y = y;
-                _this.rad = rad;
-                _this.fric = fric;
-                _this.el = el;
-                _this.m = m;
-                _this.v = new Vec(0, 0);
-                _this.f = new Vec(0, 0);
-                _this.collisionAndBounce = function () { for (var i = 0, len = this.phyCtx.objs.length; i < len; i++) {
+        class Particle extends GameObject {
+            constructor(x, y, rad, fric = 0, el = 0.5, m = rad / 2) {
+                super(x, y, 0, rad);
+                this.x = x;
+                this.y = y;
+                this.rad = rad;
+                this.fric = fric;
+                this.el = el;
+                this.m = m;
+                this.v = new Vec(0, 0);
+                this.f = new Vec(0, 0);
+                this.collisionAndBounce = function () { for (let i = 0, len = this.phyCtx.objs.length; i < len; i++) {
                     if ((this.phyCtx.objs[i] != this) && ((this.p.dis(this.phyCtx.objs[i].p) - (this.rad + this.phyCtx.objs[i].rad) < 0))) {
-                        var delta = this.p.sub(this.phyCtx.objs[i].p);
-                        var d = delta.getMag();
+                        let delta = this.p.sub(this.phyCtx.objs[i].p);
+                        let d = delta.getMag();
                         var mtd = delta.scale(((this.rad + this.phyCtx.objs[i].rad) - d) / d);
-                        var im1 = 1 / this.m;
-                        var im2 = 1 / this.phyCtx.objs[i].m;
+                        let im1 = 1 / this.m;
+                        let im2 = 1 / this.phyCtx.objs[i].m;
                         this.p = this.p.add(mtd.scale(im1 / (im1 + im2)));
                         this.phyCtx.objs[i].p = this.phyCtx.objs[i].p.sub(mtd.scale(im2 / (im1 + im2)));
-                        var iv = this.v.sub(this.phyCtx.objs[i].v);
+                        let iv = this.v.sub(this.phyCtx.objs[i].v);
                         mtd = mtd.getNorm();
-                        var vn = iv.dot(mtd);
+                        let vn = iv.dot(mtd);
                         if (vn <= 0) {
                             var imp = ((-1 * vn) * (1 + this.el)) / (im1 + im2);
                             var impulse = mtd.scale(imp);
@@ -2762,54 +2675,43 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                         }
                     }
                 } };
-                _this.p = new Vec(x, y);
+                this.p = new Vec(x, y);
                 if (!globalCtx) {
                     globalCtx = new Context();
                 }
-                globalCtx.addParticle(_this);
-                return _this;
+                globalCtx.addParticle(this);
             }
-            Particle.prototype.step = function (delta) { if (this.phyCtx.grav) {
+            step(dt) { if (this.phyCtx.grav) {
                 this.applyForce(this.phyCtx.grav);
-            } var friction = this.v.clone(); friction.setAng((friction.getAng() + Math.PI) % (2 * Math.PI)); friction = friction.scale(this.m * this.phyCtx.fric * this.fric); this.f = this.f.add(friction); this.f.scale(delta); this.v = this.v.add(this.f); if (this.v.getMag() > 0.1) {
+            } let friction = this.v.clone(); friction.setAng((friction.getAng() + Math.PI) % (2 * Math.PI)); friction = friction.scale(this.m * this.phyCtx.fric * this.fric); this.f = this.f.add(friction); this.f.scale(dt); this.v = this.v.add(this.f); if (this.v.getMag() > 0.1) {
                 this.p = this.p.add(this.v);
                 this.x = this.p.x;
                 this.y = this.p.y;
             }
             else if (this.v.getMag() !== 0) {
                 this.v = new Vec(0, 0);
-            } this.f = new Vec(0, 0); this.collisionAndBounce(); };
-            Particle.prototype.draw = function (ctx, dT) { ctx.beginPath(); ctx.strokeStyle = 'dodgerblue'; ctx.arc(this.p.x, this.p.y, this.rad - 2, 0, Physics.TAU); ctx.stroke(); };
-            Particle.prototype.applyForce = function (F) { this.f = this.f.add(F); };
-            return Particle;
-        }(GameObject));
+            } this.f = new Vec(0, 0); this.collisionAndBounce(); }
+            draw(ctx) { ctx.beginPath(); ctx.strokeStyle = 'dodgerblue'; ctx.arc(this.p.x, this.p.y, this.rad - 2, 0, Physics.TAU); ctx.stroke(); }
+            applyForce(F) { this.f = this.f.add(F); }
+        }
         Physics.Particle = Particle;
     })(Physics = exports.Physics || (exports.Physics = {}));
     var World;
     (function (World) {
-        var areas = {}, currentAreas = [];
-        function step(dT) { currentAreas.forEach(function (a) { return a.step(dT); }); }
+        World.areas = {}, World.currentAreas = [];
+        function step(dT) { World.currentAreas.forEach(a => a.step(dT)); }
         World.step = step;
         ;
-        function draw(ctx, dT) { currentAreas.forEach(function (a) { return a.draw(ctx, dT); }); }
+        function draw(ctx, dT) { World.currentAreas.forEach(a => a.draw(ctx, dT)); }
         World.draw = draw;
         ;
-        function goTo(areaName, replace) {
-            if (replace === void 0) { replace = true; }
-            if (replace) {
-                currentAreas.forEach(function (a) { return a.close(); });
-            }
-            areas[areaName].open();
-        }
+        function goTo(areaName, replace = true) { if (replace) {
+            World.currentAreas.forEach(a => a.close());
+        } World.areas[areaName].open(); }
         World.goTo = goTo;
         ;
-        var Area = (function () {
-            function Area(name, persist, zIndex, onInit, onOpen, onClose) {
-                if (persist === void 0) { persist = false; }
-                if (zIndex === void 0) { zIndex = 0; }
-                if (onInit === void 0) { onInit = function () { }; }
-                if (onOpen === void 0) { onOpen = function () { }; }
-                if (onClose === void 0) { onClose = function () { }; }
+        class Area {
+            constructor(name, persist = false, zIndex = 0, onInit = () => { }, onOpen = () => { }, onClose = () => { }) {
                 this.name = name;
                 this.persist = persist;
                 this.onInit = onInit;
@@ -2819,188 +2721,150 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 this.active = false;
                 this.backgrounds = [];
                 this.foregrounds = [];
-                areas[name] = this;
+                World.areas[name] = this;
                 this.view = new View();
                 this._zIndex = zIndex;
             }
             ;
-            Object.defineProperty(Area.prototype, "zIndex", {
-                get: function () { return this._zIndex; },
-                set: function (newVal) { this._zIndex = newVal; currentAreas.sort(function (a, b) { return a.zIndex - b.zIndex; }); },
-                enumerable: true,
-                configurable: true
-            });
-            Area.prototype.addBackground = function (asset, isForeGround, zIndex, parralax, offset, repeat, customName) {
-                if (isForeGround === void 0) { isForeGround = false; }
-                if (zIndex === void 0) { zIndex = 0; }
-                if (parralax === void 0) { parralax = 1; }
-                if (offset === void 0) { offset = 0; }
-                if (repeat === void 0) { repeat = true; }
-                var bg = { name: customName || asset, img: Engine.getBackground(asset, true) || asset, parralax: typeof parralax === 'number' ? { x: parralax, y: parralax } : parralax, offset: typeof offset === 'number' ? { x: offset, y: offset } : offset, repeat: typeof repeat === 'boolean' ? { x: repeat, y: repeat } : repeat, z: zIndex };
-                if (isForeGround) {
-                    this.foregrounds.push(bg);
-                    this.foregrounds.sort(function (a, b) { return a.z - b.z; });
+            get zIndex() { return this._zIndex; }
+            set zIndex(newVal) { this._zIndex = newVal; World.currentAreas.sort((a, b) => a.zIndex - b.zIndex); }
+            addBackground(asset, isForeGround = false, zIndex = 0, parralax = 1, offset = 0, repeat = true, customName) { let bg = { name: customName || asset, img: Engine.getBackground(asset, true) || asset, parralax: typeof parralax === 'number' ? { x: parralax, y: parralax } : parralax, offset: typeof offset === 'number' ? { x: offset, y: offset } : offset, repeat: typeof repeat === 'boolean' ? { x: repeat, y: repeat } : repeat, z: zIndex }; if (isForeGround) {
+                this.foregrounds.push(bg);
+                this.foregrounds.sort((a, b) => a.z - b.z);
+            }
+            else {
+                this.backgrounds.push(bg);
+                this.backgrounds.sort((a, b) => a.z - b.z);
+            } return bg; }
+            removeBackground(bg) { if (typeof bg !== 'string') {
+                bg = bg.name;
+            } this.backgrounds.splice(this.backgrounds.findIndex(x => bg === x.name), 1); this.foregrounds.splice(this.foregrounds.findIndex(x => bg === x.name), 1); }
+            step(dT) { const activeObjs = this.objs.filter(o => !o.pause && (!o.pauseOffScreen || o.inView)); activeObjs.forEach(o => o.startStep && o.startStep(dT)); activeObjs.forEach(o => { if (o.bound) {
+                if (typeof o.bound.angOffset === 'undefined') {
+                    o.x = o.bound.obj.x + o.bound.xOffset;
+                    o.y = o.bound.obj.y + o.bound.yOffset;
                 }
                 else {
-                    this.backgrounds.push(bg);
-                    this.backgrounds.sort(function (a, b) { return a.z - b.z; });
+                    let ang = o.bound.obj.ang + o.bound.angOffset;
+                    o.x = o.bound.obj.x + o.bound.xOffset + (Math.cos(ang) * o.bound.xCenter);
+                    o.y = o.bound.obj.y + o.bound.yOffset + (Math.sin(ang) * o.bound.yCenter);
+                    if (o.bound.matchAng) {
+                        o.ang = ang;
+                    }
                 }
-                return bg;
-            };
-            Area.prototype.removeBackground = function (bg) { if (typeof bg !== 'string') {
-                bg = bg.name;
-            } this.backgrounds.splice(this.backgrounds.findIndex(function (x) { return bg === x.name; }), 1); this.foregrounds.splice(this.foregrounds.findIndex(function (x) { return bg === x.name; }), 1); };
-            Area.prototype.step = function (dT) { this.objs.forEach(function (o) { return o.startStep && o.startStep(dT); }); this.objs.forEach(function (o) { return o.step(dT); }); this.objs.forEach(function (o) { return o.endStep && o.endStep(dT); }); };
-            Area.prototype.draw = function (ctx, dT) {
-                var _this = this;
+            } o.step(dT); }); activeObjs.forEach(o => o.endStep && o.endStep(dT)); }
+            draw(ctx, dT) { ctx.save(); this.view.update(); ctx.scale(this.view.z, this.view.z); ctx.translate(-this.view.x, -this.view.y); this.drawBackgrounds(ctx, false); let visibleObjs = this.objs.filter(o => { if (o.x + o.clipBox.x + o.clipBox.width > this.view.x && o.x + o.clipBox.x < this.view.x + this.view.width && o.y + o.clipBox.y + o.clipBox.height > this.view.y && o.y + o.clipBox.y < this.view.y + this.view.height) {
+                o.inView = true;
+            }
+            else {
+                o.inView = false;
+            } return o.inView; }); visibleObjs.forEach(o => o.startDraw && o.startDraw(ctx, dT)); visibleObjs.forEach(o => o.draw(ctx, dT)); visibleObjs.forEach(o => o.endDraw && o.endDraw(ctx, dT)); ctx.restore(); if (this.light) {
+                this.light.draw(ctx);
+            } if (this.foregrounds.length) {
                 ctx.save();
-                this.view.update();
                 ctx.scale(this.view.z, this.view.z);
                 ctx.translate(-this.view.x, -this.view.y);
-                this.drawBackgrounds(ctx, false);
-                var visibleObjs = this.objs.filter(function (o) { if (o.x + o.clipBox.x + o.clipBox.width > _this.view.x && o.x + o.clipBox.x < _this.view.x + _this.view.width && o.y + o.clipBox.y + o.clipBox.height > _this.view.y && o.y + o.clipBox.y < _this.view.y + _this.view.height) {
-                    o.inView = true;
-                }
-                else {
-                    o.inView = false;
-                } return o.inView; });
-                visibleObjs.forEach(function (o) { return o.startDraw && o.startDraw(ctx, dT); });
-                visibleObjs.forEach(function (o) { return o.draw(ctx, dT); });
-                visibleObjs.forEach(function (o) { return o.endDraw && o.endDraw(ctx, dT); });
+                this.drawBackgrounds(ctx, true);
                 ctx.restore();
-                if (this.light) {
-                    this.light.draw(ctx);
+            } }
+            drawBackgrounds(ctx, isForeground) { this[isForeground ? 'foregrounds' : 'backgrounds'].forEach(bg => { if (typeof bg.img === 'string') {
+                ctx.save();
+                ctx.fillStyle = bg.img;
+                ctx.fillRect(this.view.x, this.view.y, Engine.cW / this.view.z, Engine.cH / this.view.z);
+                ctx.restore();
+            }
+            else {
+                let x = (this.view.x * bg.parralax.x) - bg.offset.x;
+                if (bg.repeat.x) {
+                    x %= bg.img.width;
                 }
-                if (this.foregrounds.length) {
-                    ctx.save();
-                    ctx.scale(this.view.z, this.view.z);
-                    ctx.translate(-this.view.x, -this.view.y);
-                    this.drawBackgrounds(ctx, true);
-                    ctx.restore();
-                }
-            };
-            Area.prototype.drawBackgrounds = function (ctx, isForeground) {
-                var _this = this;
-                this[isForeground ? 'foregrounds' : 'backgrounds'].forEach(function (bg) { if (typeof bg.img === 'string') {
-                    ctx.save();
-                    ctx.fillStyle = bg.img;
-                    ctx.fillRect(_this.view.x, _this.view.y, Engine.cW / _this.view.z, Engine.cH / _this.view.z);
-                    ctx.restore();
-                }
-                else {
-                    var x = (_this.view.x * bg.parralax.x) - bg.offset.x;
-                    if (bg.repeat.x) {
-                        x %= bg.img.width;
+                x = this.view.x - x;
+                let xEnd = bg.repeat.x ? this.view.x + Engine.cW : x + 1;
+                for (; x < xEnd; x += bg.img.width) {
+                    let y = (this.view.y * bg.parralax.y) - bg.offset.y;
+                    if (bg.repeat.y) {
+                        y %= bg.img.width;
                     }
-                    x = _this.view.x - x;
-                    var xEnd = bg.repeat.x ? _this.view.x + Engine.cW : x + 1;
-                    for (; x < xEnd; x += bg.img.width) {
-                        var y = (_this.view.y * bg.parralax.y) - bg.offset.y;
-                        if (bg.repeat.y) {
-                            y %= bg.img.width;
-                        }
-                        y = _this.view.y - y;
-                        var yEnd = bg.repeat.y ? _this.view.y + Engine.cH : y + 1;
-                        for (; y < yEnd; y += bg.img.height) {
-                            ctx.drawImage(bg.img, x, y);
-                        }
+                    y = this.view.y - y;
+                    let yEnd = bg.repeat.y ? this.view.y + Engine.cH : y + 1;
+                    for (; y < yEnd; y += bg.img.height) {
+                        ctx.drawImage(bg.img, x, y);
                     }
-                } });
-            };
-            Area.prototype.setLayout = function (grid, objs, cellWidth, cellHeight, x, y) {
-                if (x === void 0) { x = 0; }
-                if (y === void 0) { y = 0; }
-                this.layout = { grid: grid, objects: objs, width: cellWidth, height: cellHeight || cellWidth, x: x, y: y };
-            };
+                }
+            } }); }
+            setLayout(grid, objs, cellWidth, cellHeight, x = 0, y = 0) { this.layout = { grid: grid, objects: objs, width: cellWidth, height: cellHeight || cellWidth, x: x, y: y }; }
             ;
-            Area.prototype.createLayout = function () {
-                var _this = this;
-                var grid = this.layout.grid.split('\n');
-                var startCol = -1, startRow = -1;
-                for (var i = 0; i < grid.length; i++) {
-                    var m = grid[i].match(/[a-z0-9]/i);
-                    if (m) {
-                        if (startCol === -1) {
-                            startCol = i;
-                        }
-                        if (m.index < startRow) {
-                            startRow = m.index;
-                        }
+            createLayout() { let grid = this.layout.grid.split('\n'); let startCol = -1, startRow = -1; for (let i = 0; i < grid.length; i++) {
+                let m = grid[i].match(/[a-z0-9]/i);
+                if (m) {
+                    if (startCol === -1) {
+                        startCol = i;
+                    }
+                    if (m.index < startRow) {
+                        startRow = m.index;
                     }
                 }
-                grid.forEach(function (l, row) { l.replace(/[a-z0-9]/gi, function (o, col) {
-                    var _a;
-                    try {
-                        var obj = _this.layout.objects[o];
-                        var inst = new ((_a = obj[0]).bind.apply(_a, [void 0].concat(obj.slice(1))))();
-                        inst.x = _this.layout.x + ((col - startCol) * _this.layout.width);
-                        inst.y = _this.layout.y + ((row - startRow) * _this.layout.height);
-                        _this.add(inst);
-                    }
-                    catch (_b) {
-                        console.error("Bunas Error: Cannot create object for character \"" + o + "\" in level layout");
-                    }
-                    return o;
-                }); });
-            };
+            } grid.forEach((l, row) => { l.replace(/[a-z0-9]/gi, (o, col) => { try {
+                let obj = this.layout.objects[o];
+                let inst = new obj[0](...obj.slice(1));
+                inst.x = this.layout.x + ((col - startCol) * this.layout.width);
+                inst.y = this.layout.y + ((row - startRow) * this.layout.height);
+                this.add(inst);
+            }
+            catch (_a) {
+                console.error(`Bunas Error: Cannot create object for character "${o}" in level layout`);
+            } return o; }); }); }
             ;
-            Area.prototype.open = function () { if (!this.active) {
+            open() { if (!this.active) {
                 if (this.layout) {
                     this.createLayout();
                 }
                 this.onInit();
                 this.view.reset();
                 this.active = true;
-            } currentAreas.push(this); currentAreas.sort(function (a, b) { return a.zIndex - b.zIndex; }); this.onOpen(); };
+            } World.currentAreas.push(this); World.currentAreas.sort((a, b) => a.zIndex - b.zIndex); this.onOpen(); }
             ;
-            Area.prototype.close = function () { currentAreas.splice(1, currentAreas.indexOf(this)); this.onClose(); if (!this.persist) {
+            close() { World.currentAreas.splice(1, World.currentAreas.indexOf(this)); this.onClose(); if (!this.persist) {
                 this.objs = [];
-            } };
+            } }
             ;
-            Area.prototype.delete = function () { this.objs = []; if (this.light) {
-                this.light.sources.forEach(function (s) { return s.delete(); });
-                this.light.blocks.forEach(function (s) { return s.delete(); });
-            } delete areas[this.name]; };
-            Area.prototype.add = function (objs) {
-                var _this = this;
-                [].concat(objs).forEach(function (o) { if (o.area) {
-                    o.area.remove(o);
-                } for (var i = 0; true; i++) {
-                    if (i === _this.objs.length || o.z > _this.objs[i].z) {
-                        _this.objs.splice(i, 0, o);
-                        break;
-                    }
-                } o.area = _this; });
-            };
-            ;
-            Area.prototype.remove = function (o) { this.objs.splice(this.objs.indexOf(o), 1); o.area = null; };
-            ;
-            Area.prototype.zSort = function (o) { this.objs.splice(this.objs.indexOf(o), 1); for (var i = 0; true; i++) {
+            delete() { this.objs = []; if (this.light) {
+                this.light.sources.forEach(s => s.delete());
+                this.light.blocks.forEach(s => s.delete());
+            } delete World.areas[this.name]; }
+            add(objs) { [].concat(objs).forEach(o => { if (o.area) {
+                o.area.remove(o);
+            } for (let i = 0; true; i++) {
                 if (i === this.objs.length || o.z > this.objs[i].z) {
                     this.objs.splice(i, 0, o);
                     break;
                 }
-            } };
-            Area.prototype.togglePersistance = function (persist) { this.persist = persist === undefined ? !this.persist : persist; if (!this.persist && currentAreas.indexOf(this) === -1) {
-                this.objs = [];
-            } };
+            } o.area = this; }); }
             ;
-            Area.prototype.toggleLight = function (on) { if (!this.light) {
+            remove(o) { this.objs.splice(this.objs.indexOf(o), 1); o.area = null; }
+            ;
+            zSort(o) { this.objs.splice(this.objs.indexOf(o), 1); for (let i = 0; true; i++) {
+                if (i === this.objs.length || o.z > this.objs[i].z) {
+                    this.objs.splice(i, 0, o);
+                    break;
+                }
+            } }
+            togglePersistance(persist) { this.persist = persist === undefined ? !this.persist : persist; if (!this.persist && World.currentAreas.indexOf(this) === -1) {
+                this.objs = [];
+            } }
+            ;
+            toggleLight(on) { if (!this.light) {
                 this.light = new Light.LightArea(this);
             }
             else {
                 this.light.active = typeof on === 'undefined' ? !this.light.active : on;
-            } };
+            } }
             ;
-            return Area;
-        }());
+        }
         World.Area = Area;
         ;
-        var View = (function () {
-            function View(x, y, _z) {
-                if (x === void 0) { x = 0; }
-                if (y === void 0) { y = 0; }
-                if (_z === void 0) { _z = 1; }
+        class View {
+            constructor(x = 0, y = 0, _z = 1) {
                 this.x = x;
                 this.y = y;
                 this._z = _z;
@@ -3012,42 +2876,30 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 this.height = Engine.cH / _z;
             }
             ;
-            Object.defineProperty(View.prototype, "z", {
-                get: function () { return this._z; },
-                set: function (val) { this._z = val; this.width = Engine.cW / val; this.height = Engine.cH / val; },
-                enumerable: true,
-                configurable: true
-            });
-            View.prototype.track = function (object, padding, trackSpeed, bound) {
-                if (padding === void 0) { padding = 0; }
-                if (trackSpeed === void 0) { trackSpeed = 0; }
-                this.tracking = object;
-                this.trackLag = trackSpeed;
-                this.trackOn = true;
-                if (bound) {
-                    bound[2] += bound[0];
-                    bound[3] += bound[1];
-                    bound[2] -= this.width;
-                    bound[3] -= this.height;
-                    this.trackBound = bound;
-                }
-                if (typeof padding === 'number') {
-                    this.trackPad = [padding, padding, padding, padding];
-                }
-                else if (padding.length === 2) {
-                    this.trackPad = padding.concat(padding);
-                }
-                else {
-                    this.trackPad = padding;
-                }
-            };
-            View.prototype.toggleTracking = function (turnOn) { if (typeof turnOn === undefined) {
+            get z() { return this._z; }
+            set z(val) { this._z = val; this.width = Engine.cW / val; this.height = Engine.cH / val; }
+            track(object, padding = 0, trackSpeed = 0, bound) { this.tracking = object; this.trackLag = trackSpeed; this.trackOn = true; if (bound) {
+                bound[2] += bound[0];
+                bound[3] += bound[1];
+                bound[2] -= this.width;
+                bound[3] -= this.height;
+                this.trackBound = bound;
+            } if (typeof padding === 'number') {
+                this.trackPad = [padding, padding, padding, padding];
+            }
+            else if (padding.length === 2) {
+                this.trackPad = [...padding, ...padding];
+            }
+            else {
+                this.trackPad = padding;
+            } }
+            toggleTracking(turnOn) { if (typeof turnOn === undefined) {
                 this.trackOn = !this.trackOn;
             }
             else {
                 this.trackOn = turnOn;
-            } };
-            View.prototype.update = function () { if (this.tracking) {
+            } }
+            update() { if (this.tracking) {
                 if (this.tracking.y < this.y + this.trackPad[0]) {
                     this.y -= (this.y - this.tracking.y + this.trackPad[0]) * this.trackLag;
                 }
@@ -3078,26 +2930,130 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 }
                 this.x = Math.floor(this.x);
                 this.y = Math.floor(this.y);
-            } };
-            View.prototype.reset = function () { this.x = this.initX; this.y = this.initY; this.z = this.initZ; };
-            return View;
-        }());
+            } }
+            reset() { this.x = this.initX; this.y = this.initY; this.z = this.initZ; }
+        }
         World.View = View;
         ;
     })(World = exports.World || (exports.World = {}));
 });
-define("Block", ["require", "exports", "Bunas", "main"], function (require, exports, Bunas_1, main_1) {
+define("Gem", ["require", "exports", "Bunas", "Block"], function (require, exports, Bunas_1, Block_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var blockWidth, tileWidth, bgTileSet, fgTileSet, gemsTile, caveBg;
-    var default_1 = (function (_super) {
-        __extends(default_1, _super);
-        function default_1(x, y, gem, hardness, blockLayout) {
-            if (gem === void 0) { gem = -1; }
-            var _this = _super.call(this, x, y, 0.1, blockWidth, { x: -tileWidth, y: -tileWidth, width: blockWidth * 2 }) || this;
-            _this.hardness = hardness;
-            _this.isCave = false;
-            _this.tiles = {
+    class Gem extends Bunas_1.GameObject {
+        constructor(x, y, type, ang) {
+            super(x, y, 0, 10);
+            this.type = type;
+            this.ang = ang;
+            this.color = Gem.types[this.type].color;
+            this.source = new Bunas_1.Light.Source(x, y, 1, this.color + '0', false);
+            this.source.bindPosition(this);
+            this.source.customMask = ((ctx, rad, color) => {
+                [
+                    { r: 0.6, s: 0, f: 6.283 },
+                    { r: 0.85, s: ang, f: 0.5 + ang },
+                    { r: 1, s: 2.3 + ang, f: 2.8 + ang },
+                    { r: 0.7, s: 4 + ang, f: 4.5 + ang }
+                ].forEach(arc => {
+                    let grdRad = ctx.createRadialGradient(0, 0, 0, 0, 0, rad * arc.r);
+                    grdRad.addColorStop(0, color);
+                    grdRad.addColorStop(1, color.substring(0, 7) + '00');
+                    ctx.fillStyle = grdRad;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.arc(0, 0, rad * arc.r, arc.s, arc.f);
+                    ctx.lineTo(0, 0);
+                    ctx.fill();
+                });
+            }).bind(this);
+            this.source.active = false;
+        }
+        step(dt) {
+            if (this.dx || this.dy) {
+                this.dx *= 0.99;
+                this.dy *= 0.99;
+                this.dy += 0.02;
+                this.x += this.dx * dt;
+                this.y += this.dy * dt;
+                this.ang += this.dAng;
+                const b = Block_1.default.current.find(b => this.checkCollision(b));
+                if (b) {
+                    this.x -= this.dx * dt;
+                    this.y -= this.dy * dt;
+                    if (this.x > b.x + b.colBox.x && this.x < b.x + b.colBox.x + b.colBox.width) {
+                        this.dy *= -1;
+                        this.dx += this.dAng * (this.y < b.y + b.colBox.y ? 5 : -5);
+                    }
+                    else {
+                        this.dx *= -1;
+                        this.dy += this.dAng * (this.x < b.x + b.colBox.x ? -5 : 5);
+                    }
+                    this.dAng *= 0.8;
+                    this.x += this.dx;
+                    this.y += this.dy;
+                }
+            }
+        }
+        free() {
+            this.dx = Math.floor(10 * Math.random()) - 5;
+            this.dy = Math.floor(10 * Math.random()) - 5;
+            this.dAng = 0.5 - Math.random();
+            this.source.bindPosition(this, 0, 0, 0, 0, 0, true);
+            Gem.freeGems.push(this);
+            if (Gem.freeGems.length > 80) {
+                (Gem.freeGems.find(g => !g.inView) ||
+                    Gem.freeGems[0]).delete();
+            }
+        }
+        hit() {
+            Gem.gemCount[this.type] += 1;
+            this.delete();
+        }
+        draw(ctx) {
+            ctx.save();
+            ctx.translate(this.x + 5, this.y + 5);
+            ctx.rotate(this.ang);
+            ctx.beginPath();
+            ctx.moveTo(-10, 0);
+            ctx.lineTo(0, -6);
+            ctx.lineTo(10, -2);
+            ctx.lineTo(6, 10);
+            ctx.lineTo(-4, 8);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.restore();
+        }
+        delete() {
+            Gem.freeGems.splice(Gem.freeGems.findIndex(g => g === this), 1);
+            this.source.delete();
+            super.delete();
+        }
+    }
+    Gem.types = [
+        { name: 'Aquamarine', color: '#19A', pureColor: '#4CD', value: 1 },
+        { name: 'Rhodonite', color: '#C15', pureColor: '#F48', value: 3 },
+        { name: 'Amethyst', color: '#A0C', pureColor: '#D0F', value: 8 },
+        { name: 'Lapis', color: '#00C', pureColor: '#31F', value: 15 },
+        { name: 'Amber', color: '#CA2', pureColor: '#FC5', value: 24 },
+        { name: 'Jade', color: '#2A1', pureColor: '#5D4', value: 35 },
+        { name: 'Obsidian', color: '#405', pureColor: '#738', value: 50 }
+    ];
+    Gem.freeGems = [];
+    Gem.gemCount = Gem.types.map(() => 0);
+    exports.default = Gem;
+});
+define("Block", ["require", "exports", "Bunas", "main", "Gem"], function (require, exports, Bunas_2, main_1, Gem_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    let blockWidth, tileWidth, bgTileSet, fgTileSet, caveBg;
+    class Block extends Bunas_2.GameObject {
+        constructor(x, y, gemType = -1, hardness, blockLayout) {
+            super(x, y, 0.1, blockWidth, { x: -tileWidth, y: -tileWidth, width: blockWidth * 2 });
+            this.hardness = hardness;
+            this.gems = [];
+            this.damage = 0;
+            this.isCave = false;
+            this.tiles = {
                 bgSet: bgTileSet,
                 fgSet: fgTileSet,
                 bgType: [0, 0, 0, 0],
@@ -3105,73 +3061,42 @@ define("Block", ["require", "exports", "Bunas", "main"], function (require, expo
                 x: [0, 0, 0, 0],
                 y: [0, 0, 0, 0]
             };
-            _this.width = blockWidth;
-            main_1.levelBlocks.push(_this);
-            if (gem > -1) {
-                var ang_1 = main_1.rand(6.28, 0), dist = main_1.rand(25, 0, true);
-                _this.gem = {
-                    type: gem,
-                    ang: ang_1,
-                    x: _this.x + tileWidth + (Math.cos(ang_1) * dist),
-                    y: _this.y + tileWidth + (Math.sin(ang_1) * dist),
-                    source: null,
-                    edge: false
-                };
-                _this.gem.source = new Bunas_1.Light.Source(_this.gem.x, _this.gem.y, 1, main_1.gems[gem].color + '0', false);
-                _this.gem.source.customMask = (function (ctx, rad, color) {
-                    [
-                        { r: 0.6, s: 0, f: 6.283 },
-                        { r: 0.85, s: ang_1, f: 0.5 + ang_1 },
-                        { r: 1, s: 2.3 + ang_1, f: 2.8 + ang_1 },
-                        { r: 0.7, s: 4 + ang_1, f: 4.5 + ang_1 }
-                    ].forEach(function (arc) {
-                        var grdRad = ctx.createRadialGradient(0, 0, 0, 0, 0, rad * arc.r);
-                        grdRad.addColorStop(0, color);
-                        grdRad.addColorStop(1, color.substring(0, 7) + '00');
-                        ctx.fillStyle = grdRad;
-                        ctx.beginPath();
-                        ctx.moveTo(0, 0);
-                        ctx.arc(0, 0, rad * arc.r, arc.s, arc.f);
-                        ctx.lineTo(0, 0);
-                        ctx.fill();
-                    });
-                }).bind(_this);
-                _this.gem.source.active = false;
+            this.width = blockWidth;
+            Block.current.push(this);
+            if (gemType > -1) {
+                let gemCount = main_1.rand(4, 1, true);
+                for (let i = 0; i < gemCount; i += 1) {
+                    let ang = main_1.rand(6.28, 0), dist = main_1.rand(25, 0, true);
+                    this.gems.push(new Gem_1.default(this.x + tileWidth + (Math.cos(ang) * dist), this.y + tileWidth + (Math.sin(ang) * dist), gemType, ang));
+                }
             }
-            _this.randTile = main_1.rand(4, 0, true);
-            _this.setTiles(blockLayout);
-            return _this;
+            this.randTile = main_1.rand(4, 0, true);
+            this.setTiles(blockLayout);
+            this.maxDamage = (this.hardness + 1) * 3;
         }
-        default_1.setDefaultWidths = function (width) {
+        static setDefaultWidths(width) {
             blockWidth = width;
             tileWidth = width / 2;
-            bgTileSet = new Bunas_1.Graphics.TileSet('block_bg', blockWidth, blockWidth);
-            fgTileSet = new Bunas_1.Graphics.TileSet('block_fg', tileWidth, tileWidth);
-            gemsTile = new Bunas_1.Graphics.TileSet('gemsTile', tileWidth, tileWidth);
-            caveBg = new Bunas_1.Graphics.TileSet('caveBg', 64, 64);
-        };
-        default_1.prototype.setTiles = function (blocks) {
-            var _this = this;
-            if (blocks === void 0) { blocks = []; }
-            var prevType = [];
+            bgTileSet = new Bunas_2.Graphics.TileSet('block_bg', blockWidth, blockWidth);
+            fgTileSet = new Bunas_2.Graphics.TileSet('block_fg', tileWidth, tileWidth);
+            caveBg = new Bunas_2.Graphics.TileSet('caveBg', 64, 64);
+        }
+        setTiles(blocks = []) {
+            let prevType = [];
             if (!blocks.length) {
                 if (this.hardness === 0) {
-                    this.tiles.bgType.forEach(function (t) { return prevType.push(t); });
+                    this.tiles.bgType.forEach(t => prevType.push(t));
                 }
-                for (var y = -1; y <= 1; y++) {
-                    var _loop_1 = function (x) {
+                for (let y = -1; y <= 1; y++) {
+                    for (let x = -1; x <= 1; x++) {
                         if (x !== 0 || y !== 0) {
-                            var checkX_1 = this_1.x + (tileWidth) + (x * blockWidth), checkY_1 = this_1.y + (tileWidth) + (y * blockWidth);
-                            blocks.push(main_1.levelBlocks.some(function (b) { return b.checkCollision(checkX_1, checkY_1); }));
+                            let checkX = this.x + tileWidth + (x * blockWidth), checkY = this.y + tileWidth + (y * blockWidth);
+                            blocks.push(Block.current.some(b => b.checkCollision(checkX, checkY)));
                         }
-                    };
-                    var this_1 = this;
-                    for (var x = -1; x <= 1; x++) {
-                        _loop_1(x);
                     }
                 }
             }
-            var tileOffset = tileWidth;
+            let tileOffset = tileWidth;
             this.tiles.x = [
                 this.x - tileOffset,
                 this.x + tileOffset,
@@ -3240,10 +3165,10 @@ define("Block", ["require", "exports", "Bunas", "main"], function (require, expo
             else {
                 this.tiles.bgType[3] = blocks[6] ? 7 : 12;
             }
-            var t = this.tiles.bgType;
+            let t = this.tiles.bgType;
             if (t[0] !== 6 || t[1] !== 6 || t[2] !== 6 || t[3] !== 6) {
-                var tilePad = 8;
-                var lightMask = [
+                let tilePad = 8;
+                let lightMask = [
                     {
                         x: t[0] === 0 || t[0] === 5 ? tilePad : 0,
                         y: t[0] === 0 || t[0] === 1 ? tilePad : 0
@@ -3265,19 +3190,16 @@ define("Block", ["require", "exports", "Bunas", "main"], function (require, expo
                     this.lightBlock.mask = lightMask;
                 }
                 else {
-                    this.lightBlock = new Bunas_1.Light.Block(this.x, this.y, lightMask, this.draw.bind(this), true);
+                    this.lightBlock = new Bunas_2.Light.Block(this.x, this.y, lightMask, this.draw.bind(this), true);
                 }
             }
-            if (this.gem && this.tiles.bgType.some(function (t) { return t !== 6; })) {
-                this.gem.edge = true;
-            }
-            this.tiles.fgType = this.tiles.bgType.map(function (t) {
+            this.tiles.fgType = this.tiles.bgType.map(t => {
                 switch (t) {
                     case 0:
                         t = 11;
                         break;
                     case 1:
-                        t = [12, 13][_this.randTile % 2];
+                        t = [12, 13][this.randTile % 2];
                         break;
                     case 2:
                         t = 14;
@@ -3289,13 +3211,13 @@ define("Block", ["require", "exports", "Bunas", "main"], function (require, expo
                         t = 9;
                         break;
                     case 5:
-                        t = [21, 31][_this.randTile % 2];
+                        t = [21, 31][this.randTile % 2];
                         break;
                     case 6:
-                        t = [22, 23, 32, 33][_this.randTile];
+                        t = [22, 23, 32, 33][this.randTile];
                         break;
                     case 7:
-                        t = t = [24, 34][_this.randTile % 2];
+                        t = t = [24, 34][this.randTile % 2];
                         break;
                     case 8:
                         t = 36;
@@ -3307,7 +3229,7 @@ define("Block", ["require", "exports", "Bunas", "main"], function (require, expo
                         t = 41;
                         break;
                     case 11:
-                        t = [42, 43][_this.randTile % 2];
+                        t = [42, 43][this.randTile % 2];
                         break;
                     case 12:
                         t = 44;
@@ -3315,115 +3237,105 @@ define("Block", ["require", "exports", "Bunas", "main"], function (require, expo
                 }
                 return t;
             });
-            this.tiles.bgType = this.tiles.bgType.map(function (t, i) {
+            this.tiles.bgType = this.tiles.bgType.map((t, i) => {
                 if (prevType && (prevType[i] === 6 || prevType[i] > 14)) {
                     return 30;
                 }
-                return t + (15 * _this.hardness);
+                return t + (15 * this.hardness);
             });
-            this.tiles.fgType = this.tiles.fgType.map(function (t, i) {
+            this.tiles.fgType = this.tiles.fgType.map((t, i) => {
                 if (prevType && (prevType[i] === 6 || prevType[i] > 14)) {
                     return t + 60;
                 }
-                return t + (60 * _this.hardness);
+                return t + (60 * this.hardness);
             });
-        };
-        default_1.prototype.break = function () {
-            var _this = this;
-            this.delete();
-            this.isCave = true;
-            this.z -= 0.1;
-            this.tiles.bgSet = caveBg;
-            this.tiles.bgType = [0, 1, 2, 3];
-            var blocks = [];
-            for (var y = -1; y <= 1; y++) {
-                var _loop_2 = function (x) {
-                    if (x !== 0 || y !== 0) {
-                        var checkX_2 = this_2.x + (tileWidth) + (x * blockWidth), checkY_2 = this_2.y + (tileWidth) + (y * blockWidth);
-                        blocks.push(main_1.levelBlocks.some(function (b) { return b.checkCollision(checkX_2, checkY_2); }));
+        }
+        hit(hitForce = -1) {
+            if (hitForce === -1) {
+                this.damage = this.maxDamage;
+            }
+            else {
+                this.damage += hitForce;
+            }
+            if (this.damage >= this.maxDamage) {
+                this.delete();
+                this.isCave = true;
+                this.z -= 0.1;
+                this.tiles.bgSet = caveBg;
+                this.tiles.bgType = [0, 1, 2, 3];
+                let blocks = [];
+                for (let y = -1; y <= 1; y++) {
+                    for (let x = -1; x <= 1; x++) {
+                        if (x !== 0 || y !== 0) {
+                            let checkX = this.x + (tileWidth) + (x * blockWidth), checkY = this.y + (tileWidth) + (y * blockWidth);
+                            blocks.push(Block.current.some(b => b.checkCollision(checkX, checkY)));
+                        }
                     }
-                };
-                var this_2 = this;
-                for (var x = -1; x <= 1; x++) {
-                    _loop_2(x);
                 }
-            }
-            this.tiles.x = [
-                this.x + (blocks[3] ? -16 : 8),
-                this.x + tileWidth + (blocks[4] ? 0 : -24),
-                this.x + (blocks[3] ? -16 : 8),
-                this.x + tileWidth + (blocks[4] ? 0 : -24),
-            ];
-            this.tiles.y = [
-                this.y + (blocks[1] ? -16 : 8),
-                this.y + (blocks[1] ? -16 : 8),
-                this.y + tileWidth + (blocks[6] ? 0 : -24),
-                this.y + tileWidth + (blocks[6] ? 0 : -24)
-            ];
-            var dis = Math.pow(blockWidth * 1.5, 2);
-            main_1.levelBlocks.forEach(function (b) {
-                if (b.inView &&
-                    (Math.pow(b.x - _this.x, 2) + Math.pow(b.y - _this.y, 2) < dis)) {
-                    b.setTiles();
-                }
-            });
-        };
-        default_1.prototype.startDraw = function (ctx) {
-            var _this = this;
-            var _loop_3 = function (i) {
-                if ([3, 4, 6, 8, 9].indexOf(this_3.tiles.bgType[i] % 15) > -1) {
-                    this_3.tiles.bgSet.draw(ctx, this_3.tiles.x[i], this_3.tiles.y[i], this_3.tiles.bgType[i]);
-                }
-                else {
-                    main_1.camera.focusDraw(this_3, function () { return _this.tiles.bgSet.draw(ctx, _this.tiles.x[i], _this.tiles.y[i], _this.tiles.bgType[i]); });
-                }
-            };
-            var this_3 = this;
-            for (var i = 0; i < 4; i++) {
-                _loop_3(i);
-            }
-        };
-        default_1.prototype.draw = function (ctx) {
-            var _this = this;
-            if (!this.isCave) {
-                main_1.camera.focusDraw(this, function () {
-                    _this.tiles.fgSet.draw(ctx, _this.x, _this.y, _this.tiles.fgType[0]);
-                    _this.tiles.fgSet.draw(ctx, _this.x + tileWidth, _this.y, _this.tiles.fgType[1]);
-                    _this.tiles.fgSet.draw(ctx, _this.x, _this.y + tileWidth, _this.tiles.fgType[2]);
-                    _this.tiles.fgSet.draw(ctx, _this.x + tileWidth, _this.y + tileWidth, _this.tiles.fgType[3]);
-                    if (!_this.isCave && _this.gem) {
-                        ctx.save();
-                        ctx.translate(_this.gem.x, _this.gem.y);
-                        ctx.rotate(_this.gem.ang);
-                        gemsTile.draw(ctx, blockWidth / -4, blockWidth / -4, _this.gem.type);
-                        ctx.restore();
+                this.tiles.x = [
+                    this.x + (blocks[3] ? -16 : 8),
+                    this.x + tileWidth + (blocks[4] ? 0 : -24),
+                    this.x + (blocks[3] ? -16 : 8),
+                    this.x + tileWidth + (blocks[4] ? 0 : -24),
+                ];
+                this.tiles.y = [
+                    this.y + (blocks[1] ? -16 : 8),
+                    this.y + (blocks[1] ? -16 : 8),
+                    this.y + tileWidth + (blocks[6] ? 0 : -24),
+                    this.y + tileWidth + (blocks[6] ? 0 : -24)
+                ];
+                let dis = Math.pow(blockWidth * 1.5, 2);
+                Block.current.forEach(b => {
+                    if (b.inView &&
+                        (Math.pow(b.x - this.x, 2) + Math.pow(b.y - this.y, 2) < dis)) {
+                        b.setTiles();
                     }
                 });
+                if (this.gems.length) {
+                    this.gems.forEach(g => g.free());
+                }
             }
-        };
-        default_1.prototype.delete = function () {
-            main_1.levelBlocks.splice(main_1.levelBlocks.indexOf(this), 1);
+        }
+        startDraw(ctx) {
+            for (let i = 0; i < 4; i++) {
+                if ([3, 4, 6, 8, 9].indexOf(this.tiles.bgType[i] % 15) > -1) {
+                    this.tiles.bgSet.draw(ctx, this.tiles.x[i], this.tiles.y[i], this.tiles.bgType[i]);
+                }
+                else {
+                    main_1.camera.focusDraw(this, () => this.tiles.bgSet.draw(ctx, this.tiles.x[i], this.tiles.y[i], this.tiles.bgType[i]));
+                }
+            }
+        }
+        draw(ctx) {
+            if (!this.isCave) {
+                main_1.camera.focusDraw(this, () => {
+                    this.tiles.fgSet.draw(ctx, this.x, this.y, this.tiles.fgType[0]);
+                    this.tiles.fgSet.draw(ctx, this.x + tileWidth, this.y, this.tiles.fgType[1]);
+                    this.tiles.fgSet.draw(ctx, this.x, this.y + tileWidth, this.tiles.fgType[2]);
+                    this.tiles.fgSet.draw(ctx, this.x + tileWidth, this.y + tileWidth, this.tiles.fgType[3]);
+                });
+            }
+        }
+        delete() {
+            Block.current.splice(Block.current.indexOf(this), 1);
             if (this.lightBlock) {
                 this.lightBlock.delete();
             }
-            if (this.gem) {
-                this.gem.source.delete();
-            }
-        };
-        return default_1;
-    }(Bunas_1.GameObject));
-    exports.default = default_1;
+        }
+    }
+    Block.current = [];
+    exports.default = Block;
 });
-define("layout", ["require", "exports", "main", "Block"], function (require, exports, main_2, Block_1) {
+define("layout", ["require", "exports", "main", "Block", "Gem"], function (require, exports, main_2, Block_2, Gem_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var caveSpacing = 8.5, maxCaveOffset = 3, maxCaveR = 4, minCaveR = 2.6, varCaveR = 0.4, outOfPlaceGem = 0.05, gemDepthVary = 1.5, gemDensityMin = 0.2, gemDensityMax = 0.6;
-    function default_2(width, height, cellW, startY) {
-        Block_1.default.setDefaultWidths(cellW);
-        var caves = [];
-        for (var x = caveSpacing / 4; x < width; x += caveSpacing) {
-            for (var y = -0.5; y < height; y += caveSpacing) {
-                var caveR = maxCaveR - ((maxCaveR - minCaveR) * y / height), gem = Math.max(0, Math.min(main_2.gems.length - 1, Math.floor(main_2.rand(-1, gemDepthVary) + ((main_2.gems.length - gemDepthVary + 1) * y / height))));
+    const caveSpacing = 8.5, maxCaveOffset = 3, maxCaveR = 4, minCaveR = 2.6, varCaveR = 0.4, outOfPlaceGem = 0.05, gemDepthVary = 1.5, gemDensityMin = 0.2, gemDensityMax = 0.6;
+    function default_1(width, height, cellW, startY) {
+        Block_2.default.setDefaultWidths(cellW);
+        let caves = [];
+        for (let x = caveSpacing / 4; x < width; x += caveSpacing) {
+            for (let y = -0.5; y < height; y += caveSpacing) {
+                let caveR = maxCaveR - ((maxCaveR - minCaveR) * y / height), gem = Math.max(0, Math.min(Gem_2.default.types.length - 1, Math.floor(main_2.rand(-1, gemDepthVary) + ((Gem_2.default.types.length - gemDepthVary + 1) * y / height))));
                 caves.push({
                     x: (x + main_2.rand(maxCaveOffset, -maxCaveOffset)) * cellW,
                     y: (y + main_2.rand(maxCaveOffset, -maxCaveOffset)) * cellW,
@@ -3433,41 +3345,35 @@ define("layout", ["require", "exports", "main", "Block"], function (require, exp
                 });
             }
         }
-        var layout = [];
-        var _loop_4 = function (y) {
+        let layout = [];
+        for (let y = 0; y < height; y++) {
             layout.push([]);
-            var _loop_5 = function (x) {
-                layout[layout.length - 1].push(!caves.some(function (c) { return Math.pow((x * cellW) - c.x, 2) + Math.pow((y * cellW) - c.y, 2) < c.r; }));
-            };
-            for (var x = 0; x < width; x++) {
-                _loop_5(x);
+            for (let x = 0; x < width; x++) {
+                layout[layout.length - 1].push(!caves.some(c => Math.pow((x * cellW) - c.x, 2) + Math.pow((y * cellW) - c.y, 2) < c.r));
             }
-        };
-        for (var y = 0; y < height; y++) {
-            _loop_4(y);
         }
-        layout.forEach(function (row, y) {
-            row.forEach(function (col, x) {
+        layout.forEach((row, y) => {
+            row.forEach((col, x) => {
                 if (col) {
-                    var blockLayout = [];
-                    for (var checkY = -1; checkY <= 1; checkY++) {
-                        for (var checkX = -1; checkX <= 1; checkX++) {
+                    let blockLayout = [];
+                    for (let checkY = -1; checkY <= 1; checkY++) {
+                        for (let checkX = -1; checkX <= 1; checkX++) {
                             if (checkX !== 0 || checkY !== 0) {
                                 blockLayout.push(layout[y + checkY] && layout[y + checkY][x + checkX]);
                             }
                         }
                     }
-                    var nearCave = caves.map(function (c) {
+                    let nearCave = caves.map(c => {
                         return {
                             dist: (Math.pow(c.x - (x * cellW), 2) + Math.pow(c.y - (y * cellW), 2)),
                             gem: c.gem,
                             gemNum: c.gemNum
                         };
                     })
-                        .sort(function (a, b) { return a.dist - b.dist; })[0];
-                    var r = main_2.rand(), gem = void 0;
+                        .sort((a, b) => a.dist - b.dist)[0];
+                    let r = main_2.rand(), gem;
                     if (r < outOfPlaceGem) {
-                        gem = main_2.rand(main_2.gems.length, 0, true);
+                        gem = main_2.rand(Gem_2.default.types.length, 0, true);
                     }
                     else if (r < nearCave.gemNum) {
                         gem = nearCave.gem;
@@ -3475,63 +3381,59 @@ define("layout", ["require", "exports", "main", "Block"], function (require, exp
                     else {
                         gem = -1;
                     }
-                    var hardness = 0;
+                    let hardness = 0;
                     if (y > 20) {
                         hardness++;
                     }
-                    new Block_1.default(x * cellW, (startY + y) * cellW, gem, hardness, blockLayout);
+                    new Block_2.default(x * cellW, (startY + y) * cellW, gem, hardness, blockLayout);
                 }
             });
         });
     }
-    exports.default = default_2;
+    exports.default = default_1;
 });
-define("Camera", ["require", "exports", "Bunas", "main"], function (require, exports, Bunas_2, main_3) {
+define("Camera", ["require", "exports", "Bunas", "main"], function (require, exports, Bunas_3, main_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var default_3 = (function () {
-        function default_3(mainView) {
+    class default_2 {
+        constructor(mainView) {
             this.mainView = mainView;
             this._on = false;
-            this.dist = Bunas_2.Engine.cH / 4;
+            this.dist = Bunas_3.Engine.cH / 4;
             this.focus = 2;
             this.easeVal = 0;
             this.ease = 0;
-            this.viewPort = { x: 0, y: 0, w: Bunas_2.Engine.cW, h: Bunas_2.Engine.cH };
+            this.viewPort = { x: 0, y: 0, w: Bunas_3.Engine.cW, h: Bunas_3.Engine.cH };
             this.drawingPhoto = false;
             this.album = [];
-            this.view = new Bunas_2.World.View();
+            this.view = new Bunas_3.World.View();
             this.photoCan = document.createElement('canvas');
-            this.photoCan.width = Bunas_2.Engine.cW / 3;
-            this.photoCan.height = (Bunas_2.Engine.cW / 3) * 0.75;
+            this.photoCan.width = Bunas_3.Engine.cW / 3;
+            this.photoCan.height = (Bunas_3.Engine.cW / 3) * 0.75;
             this.photoCtx = this.photoCan.getContext('2d');
         }
-        Object.defineProperty(default_3.prototype, "on", {
-            get: function () {
-                return this._on;
-            },
-            set: function (isOn) {
-                if (isOn) {
-                    this.view.x = this.mainView.x;
-                    this.view.y = this.mainView.y;
-                    this.view.z = this.mainView.z;
-                    Bunas_2.World.area.view = this.view;
-                    this.ease = 1;
-                }
-                else {
-                    this.ease = -1;
-                }
-                this._on = isOn;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        default_3.prototype.draw = function (ctx) {
+        get on() {
+            return this._on;
+        }
+        set on(isOn) {
+            if (isOn) {
+                this.view.x = this.mainView.x;
+                this.view.y = this.mainView.y;
+                this.view.z = this.mainView.z;
+                Bunas_3.World.area.view = this.view;
+                this.ease = 1;
+            }
+            else {
+                this.ease = -1;
+            }
+            this._on = isOn;
+        }
+        draw(ctx) {
             if (this._on) {
-                var ratio = this.dist / Bunas_2.Engine.cW * 3, w = 800 * ratio, h = 600 * ratio, r = 20 * ratio;
+                let ratio = this.dist / Bunas_3.Engine.cW * 3, w = 800 * ratio, h = 600 * ratio, r = 20 * ratio;
                 this.viewPort = {
-                    x: this.view.x + ((Bunas_2.Engine.cW - w) / 2 / this.view.z),
-                    y: this.view.y + ((Bunas_2.Engine.cH - h) / 2 / this.view.z),
+                    x: this.view.x + ((Bunas_3.Engine.cW - w) / 2 / this.view.z),
+                    y: this.view.y + ((Bunas_3.Engine.cH - h) / 2 / this.view.z),
                     w: w / this.view.z,
                     h: h / this.view.z
                 };
@@ -3548,7 +3450,7 @@ define("Camera", ["require", "exports", "Bunas", "main"], function (require, exp
                     }
                 }
                 ctx.save();
-                ctx.translate((Bunas_2.Engine.cW - w) / 2, (Bunas_2.Engine.cH - h) / 2);
+                ctx.translate((Bunas_3.Engine.cW - w) / 2, (Bunas_3.Engine.cH - h) / 2);
                 ctx.beginPath();
                 ctx.moveTo(0, r);
                 ctx.arcTo(0, 0, r, 0, r);
@@ -3560,7 +3462,7 @@ define("Camera", ["require", "exports", "Bunas", "main"], function (require, exp
                 ctx.arcTo(0, h, 0, h - r, r);
                 ctx.closePath();
                 ctx.restore();
-                ctx.rect(Bunas_2.Engine.cW, 0, -Bunas_2.Engine.cW, Bunas_2.Engine.cH);
+                ctx.rect(Bunas_3.Engine.cW, 0, -Bunas_3.Engine.cW, Bunas_3.Engine.cH);
                 ctx.fillStyle = '#000b';
                 ctx.lineWidth = 2;
                 ctx.fill();
@@ -3568,11 +3470,11 @@ define("Camera", ["require", "exports", "Bunas", "main"], function (require, exp
                 h *= 0.8;
                 r *= 2;
                 ctx.beginPath();
-                ctx.moveTo((Bunas_2.Engine.cW / 2) - 20, Bunas_2.Engine.cH / 2);
-                ctx.lineTo((Bunas_2.Engine.cW / 2) + 20, Bunas_2.Engine.cH / 2);
-                ctx.moveTo(Bunas_2.Engine.cW / 2, (Bunas_2.Engine.cH / 2) - 20);
-                ctx.lineTo(Bunas_2.Engine.cW / 2, (Bunas_2.Engine.cH / 2) + 20);
-                ctx.translate((Bunas_2.Engine.cW / 2) - (w / 2), (Bunas_2.Engine.cH / 2) - (h / 2));
+                ctx.moveTo((Bunas_3.Engine.cW / 2) - 20, Bunas_3.Engine.cH / 2);
+                ctx.lineTo((Bunas_3.Engine.cW / 2) + 20, Bunas_3.Engine.cH / 2);
+                ctx.moveTo(Bunas_3.Engine.cW / 2, (Bunas_3.Engine.cH / 2) - 20);
+                ctx.lineTo(Bunas_3.Engine.cW / 2, (Bunas_3.Engine.cH / 2) + 20);
+                ctx.translate((Bunas_3.Engine.cW / 2) - (w / 2), (Bunas_3.Engine.cH / 2) - (h / 2));
                 ctx.moveTo(0, r);
                 ctx.lineTo(0, 0);
                 ctx.lineTo(r, 0);
@@ -3589,15 +3491,15 @@ define("Camera", ["require", "exports", "Bunas", "main"], function (require, exp
                 ctx.lineTo(w, h - (r * 3));
                 ctx.moveTo(r * 3, h);
                 ctx.lineTo(w - (r * 3), h);
-                ctx.rect(w - (r / 2), (r * 3) + ((this.dist - 100) / ((Bunas_2.Engine.cW / 3) - 100) * (h - (r * 6))), r, 4);
+                ctx.rect(w - (r / 2), (r * 3) + ((this.dist - 100) / ((Bunas_3.Engine.cW / 3) - 100) * (h - (r * 6))), r, 4);
                 ctx.rect((r * 3) + ((this.focus - 0.5) / 4 * (w - 4 - (r * 6))), h - (r / 2), 4, r);
                 ctx.strokeStyle = '#0004';
                 ctx.stroke();
                 ctx.restore();
             }
-        };
-        default_3.prototype.step = function () {
-            if (Bunas_2.Input.key.down === 'KeyM') {
+        }
+        step(dt) {
+            if (Bunas_3.Input.key.down === 'KeyM' && !main_3.menu.open) {
                 this.on = !this.on;
             }
             if (this.ease === 1) {
@@ -3607,7 +3509,7 @@ define("Camera", ["require", "exports", "Bunas", "main"], function (require, exp
                     z: 1.5
                 };
                 if (this.easeVal <= 1) {
-                    this.easeVal += 0.05;
+                    this.easeVal += 0.05 * dt;
                     this.view.x += (this.target.x - this.view.x) * (this.easeVal / 2);
                     this.view.y += (this.target.y - this.view.y) * (this.easeVal / 2);
                     this.view.z += (this.target.z - this.view.z) * Math.pow(this.easeVal, 2);
@@ -3619,7 +3521,7 @@ define("Camera", ["require", "exports", "Bunas", "main"], function (require, exp
             }
             else if (this.ease === -1) {
                 if (this.easeVal >= 0) {
-                    this.easeVal -= 0.1;
+                    this.easeVal -= 0.1 * dt;
                     this.view.x += (this.mainView.x - this.view.x) * ((1 - this.easeVal) / 2);
                     this.view.y += (this.mainView.y - this.view.y) * ((1 - this.easeVal) / 2);
                     this.view.z += (this.mainView.z - this.view.z) * Math.pow(1 - this.easeVal, 2);
@@ -3627,37 +3529,37 @@ define("Camera", ["require", "exports", "Bunas", "main"], function (require, exp
                 }
                 else {
                     this.ease = 0;
-                    Bunas_2.World.area.view = this.mainView;
+                    Bunas_3.World.area.view = this.mainView;
                 }
             }
             else {
                 if (this._on) {
-                    if (Bunas_2.Input.isPressed('ArrowUp') && this.dist < Bunas_2.Engine.cH / 1.5) {
-                        this.dist += 20;
+                    if (Bunas_3.Input.isPressed('ArrowUp') && this.dist < Bunas_3.Engine.cH / 1.5) {
+                        this.dist += 20 * dt;
                     }
-                    if (Bunas_2.Input.isPressed('ArrowDown') && this.dist > 100) {
-                        this.dist -= 20;
+                    if (Bunas_3.Input.isPressed('ArrowDown') && this.dist > 100) {
+                        this.dist -= 20 * dt;
                     }
-                    if (Bunas_2.Input.isPressed('ArrowLeft') && this.focus > 0.5) {
-                        this.focus -= 0.1;
+                    if (Bunas_3.Input.isPressed('ArrowLeft') && this.focus > 0.5) {
+                        this.focus -= 0.1 * dt;
                     }
-                    if (Bunas_2.Input.isPressed('ArrowRight') && this.focus < 4.5) {
-                        this.focus += 0.1;
+                    if (Bunas_3.Input.isPressed('ArrowRight') && this.focus < 4.5) {
+                        this.focus += 0.1 * dt;
                     }
                     if (this.drawingPhoto) {
                         this.takePhoto();
                         this.drawingPhoto = false;
                     }
-                    if (Bunas_2.Input.key.down === 'Space') {
+                    if (Bunas_3.Input.key.down === 'Space') {
                         this.drawingPhoto = true;
                     }
                     this.view.x = main_3.guy.x - (this.view.width / 2) + (this.dist * Math.cos(main_3.guy.ang));
                     this.view.y = main_3.guy.y + 28 - (this.view.height / 2) + (this.dist * Math.sin(main_3.guy.ang));
                 }
             }
-        };
-        default_3.prototype.focusDraw = function (obj, drawFunc) {
-            var ctx = Bunas_2.Engine.getCanvasContext(), blur = 0.9 - Math.pow(1 - Math.abs((obj.z - this.focus) / 4), 3);
+        }
+        focusDraw(obj, drawFunc) {
+            let ctx = Bunas_3.Engine.getCanvasContext(), blur = 0.9 - Math.pow(1 - Math.abs((obj.z - this.focus) / 4), 3);
             blur = blur < 0. ? 0 : blur * 2;
             if (!this.on ||
                 this.ease !== 0 ||
@@ -3686,90 +3588,361 @@ define("Camera", ["require", "exports", "Bunas", "main"], function (require, exp
                 }
                 ctx.restore();
             }
-        };
-        default_3.prototype.takePhoto = function () {
-            var pad = 10;
+        }
+        takePhoto() {
+            let pad = 10;
             this.photoCtx.fillRect(0, 0, this.photoCan.width, this.photoCan.height);
-            this.photoCtx.drawImage(Bunas_2.Engine.getCanvasEl(), ((this.viewPort.x - this.view.x) * this.view.z) + pad, ((this.viewPort.y - this.view.y) * this.view.z) + pad, (this.viewPort.w * this.view.z) - pad, (this.viewPort.h * this.view.z) - pad, 0, 0, this.photoCan.width, this.photoCan.height);
-            var image = document.createElement('img');
-            image.src = this.photoCan.toDataURL('image/png');
-            image.style.position = 'fixed';
-            image.style.top = '0px';
-            image.style.left = '0px';
-            document.body.appendChild(image);
-            this.album.push(image);
-        };
-        return default_3;
-    }());
-    exports.default = default_3;
+            this.photoCtx.drawImage(Bunas_3.Engine.getCanvasEl(), ((this.viewPort.x - this.view.x) * this.view.z) + pad, ((this.viewPort.y - this.view.y) * this.view.z) + pad, (this.viewPort.w * this.view.z) - pad, (this.viewPort.h * this.view.z) - pad, 0, 0, this.photoCan.width, this.photoCan.height);
+            main_3.menu.addPhoto(this.photoCan.toDataURL('image/png'));
+        }
+    }
+    exports.default = default_2;
 });
-define("Guy", ["require", "exports", "Bunas", "main"], function (require, exports, Bunas_3, main_4) {
+define("Fishes/PinkFish", ["require", "exports", "Bunas", "main", "Fish"], function (require, exports, Bunas_4, main_4, Fish_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var Guy = (function (_super) {
-        __extends(Guy, _super);
-        function Guy(x, y) {
-            var _this = _super.call(this, x, y, 2, 58) || this;
-            _this.sprite = new Bunas_3.Graphics.SpriteSheet('guy_front', 8, 3);
-            _this.glow = new Bunas_3.Light.Source(0, 0, 250, '#110', true);
-            _this.glow2 = new Bunas_3.Light.Source(0, 0, 200, '#1108', false);
-            _this.torch = new Bunas_3.Light.Source(0, 0, 600, '#110', true, 1, 10);
-            _this.torch2 = new Bunas_3.Light.Source(0, 0, 400, '#1108', false, 1, 10);
-            _this.ang = 0;
-            _this.dx = 0;
-            _this.dy = 0;
-            _this.dirLeft = false;
-            _this.speed = 0;
-            _this.width = 58;
-            return _this;
+    class PinkFish extends Fish_1.Fish {
+        constructor(x, y) {
+            super(x, y, { width: 29, height: 17 });
+            let r = Math.floor(Math.random() * 2);
+            this.sprite = Bunas_4.Engine.getSprite(r ? 'fish_1' : 'fish_2');
+            this.blocker = new Bunas_4.Light.Block(this.x, this.y, [
+                { x: 12, y: 2 },
+                { x: 26, y: 5 },
+                { x: 26, y: 10 },
+                { x: 17, y: 14 },
+                { x: 3, y: 8 }
+            ], this.draw.bind(this), false, r ? '#f8F4' : '#bbf4');
+            this.light = new Bunas_4.Light.Source(x, y, 50, '#f0f4', false);
+            this.light.bindPosition(this, 14, 8);
+            this.blocker.bindPosition(this, 0, 0, 0, 14, 8);
         }
-        Guy.prototype.step = function () {
-            var _this = this;
-            var newAng = -1;
-            if (this.y < main_4.seaLevel) {
+        step(dt) {
+            if (this.turnTimer === 0) {
+                let gxDiff = this.x - main_4.guy.x, gyDiff = this.y - main_4.guy.y;
+                if ((gxDiff * gxDiff) + (gyDiff * gyDiff) < 15000) {
+                    this.ang = Math.atan2(gyDiff, gxDiff);
+                    this.dx = Math.cos(this.ang) * this.speedFast;
+                    this.dy = Math.sin(this.ang) * this.speedFast;
+                }
+                else {
+                    this.ang = this.ang + (Math.random() * Math.PI / 8) - Math.PI / 16;
+                    this.dx = Math.cos(this.ang) * this.speedSlow;
+                    this.dy = Math.sin(this.ang) * this.speedSlow;
+                }
+            }
+            super.step(dt);
+        }
+        draw(ctx) {
+            ctx.save();
+            ctx.translate(this.x + 14, this.y + 8);
+            ctx.rotate(this.ang);
+            main_4.camera.focusDraw(this, () => ctx.drawImage(this.sprite, -14, -8));
+            ctx.restore();
+        }
+    }
+    exports.PinkFish = PinkFish;
+});
+define("Fishes/Pirhana", ["require", "exports", "Bunas", "main", "Fish"], function (require, exports, Bunas_5, main_5, Fish_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Pirhana extends Fish_2.Fish {
+        constructor(x, y) {
+            super(x, y, { width: 32, height: 22 });
+            this.speedFast = 8;
+            this.attackTimer = 0;
+            this.sprite = Bunas_5.Engine.getSprite('fish_piranha');
+            this.speedFast += Math.random() * 0.5;
+            this.blocker = new Bunas_5.Light.Block(this.x, this.y, [
+                { x: 1, y: 0 },
+                { x: 12, y: 0 },
+                { x: 25, y: 0 },
+                { x: 32, y: 5 },
+                { x: 31, y: 15 },
+                { x: 14, y: 21 },
+                { x: 2, y: 19 }
+            ], this.draw.bind(this), false, '#0006sd4');
+            this.blocker.bindPosition(this, 0, 0, 0, 17, 11);
+        }
+        step(dt) {
+            let gxDiff = main_5.guy.x - this.x, gyDiff = main_5.guy.y - this.y;
+            if (this.attackTimer) {
+                this.ang = Math.atan2(gyDiff, gxDiff);
+                if (this.attackTimer > 40) {
+                    this.dx = Math.cos(this.ang) * this.speedFast;
+                    this.dy = Math.sin(this.ang) * this.speedFast;
+                }
+                else {
+                }
+            }
+            if (this.turnTimer === 0) {
+                let dist = (gxDiff * gxDiff) + (gyDiff * gyDiff);
+                if (!this.attackTimer || dist > 80000) {
+                    if (dist < 80000) {
+                        this.dx = 0;
+                        this.dy = 0;
+                        this.attackTimer++;
+                    }
+                    else {
+                        this.attackTimer = 0;
+                        this.ang = this.ang + (Math.random() * Math.PI / 8) - Math.PI / 16;
+                        this.dx = Math.cos(this.ang) * this.speedSlow;
+                        this.dy = Math.sin(this.ang) * this.speedSlow;
+                    }
+                }
+            }
+            super.step(dt);
+        }
+        draw(ctx) {
+            ctx.save();
+            ctx.translate(this.x + 17, this.y + 11);
+            ctx.rotate(this.ang);
+            main_5.camera.focusDraw(this, () => ctx.drawImage(this.sprite, -17, -11));
+            ctx.restore();
+        }
+    }
+    exports.Pirhana = Pirhana;
+});
+define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fish"], function (require, exports, Bunas_6, main_6, Fish_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Eel extends Fish_3.Fish {
+        constructor(x, y, length) {
+            super(x, y, 20);
+            this.nodes = [];
+            this.elastic = 0.9;
+            this.thickness = 8;
+            this.fric = 0.1;
+            this.wiggle = 1;
+            this.ang = 0;
+            this.speed = [3, 8, 0, 4];
+            this.state = 0;
+            this.nodes = [];
+            let nodeNum = length / (this.thickness * 2);
+            for (let i = 0; i < nodeNum; i++) {
+                this.nodes.push({
+                    position: { x: x - (i * this.thickness * 2), y: y },
+                    velocity: { x: 0, y: 0 },
+                    force: { x: 0, y: 0 },
+                    block: new Bunas_6.Light.Block(x - (i * this.thickness * 2), y, { width: this.thickness * 2, height: this.thickness * 2 })
+                });
+            }
+        }
+        step() {
+            this.wiggle += this.state === 0 ? 0.1 : 0.4;
+            if (this.wiggle > 12.6) {
+                if (this.state === 0) {
+                    this.ang += (Math.random() * 2) - 1;
+                }
+                this.wiggle = 0;
+            }
+            if (this.state === 1) {
+                this.ang = Math.atan2(main_6.guy.y - this.y + 32, main_6.guy.x - this.x + 32);
+            }
+            let a = this.ang + (Math.sin(this.wiggle) * (this.state === 0 ? 1 : 0.5));
+            this.x += Math.cos(a) * this.speed[this.state];
+            this.y += Math.sin(a) * this.speed[this.state];
+            this.nodes[0].position.x = this.x;
+            this.nodes[0].position.y = this.y;
+            for (let i = 0; i < this.nodes.length; i++) {
+                let n = this.nodes[i];
+                if (i > 0) {
+                    let nPrev = this.nodes[i - 1], ang = Math.atan2(nPrev.position.y - n.position.y, nPrev.position.x - n.position.x), nearN = {
+                        x: n.position.x + (Math.cos(ang) * this.thickness),
+                        y: n.position.y + (Math.sin(ang) * this.thickness)
+                    }, nearNp = {
+                        x: nPrev.position.x + (Math.cos(ang + Math.PI) * this.thickness),
+                        y: nPrev.position.y + (Math.sin(ang + Math.PI) * this.thickness)
+                    };
+                    n.force.x += (nearNp.x - nearN.x) * this.elastic;
+                    n.force.y += (nearNp.y - nearN.y) * this.elastic;
+                    nPrev.force.x += (nearN.x - nearNp.x) * this.elastic;
+                    nPrev.force.y += (nearN.y - nearNp.y) * this.elastic;
+                    n.force.x += n.velocity.x * -this.fric;
+                    n.force.y += n.velocity.y * -this.fric;
+                    n.velocity.x += n.force.x;
+                    n.velocity.y += n.force.y;
+                    n.position.x += n.velocity.x;
+                    n.position.y += n.velocity.y;
+                    n.force = { x: 0, y: 0 };
+                }
+                n.block.x = n.position.x;
+                n.block.y = n.position.y;
+            }
+        }
+        draw(ctx) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(this.nodes[0].position.x, this.nodes[0].position.y);
+            let n = 1;
+            for (; n < this.nodes.length - 2; n++) {
+                let xc = (this.nodes[n].position.x + this.nodes[n + 1].position.x) / 2, yc = (this.nodes[n].position.y + this.nodes[n + 1].position.y) / 2;
+                ctx.quadraticCurveTo(this.nodes[n].position.x, this.nodes[n].position.y, xc, yc);
+            }
+            ctx.quadraticCurveTo(this.nodes[n].position.x, this.nodes[n].position.y, this.nodes[n + 1].position.x, this.nodes[n + 1].position.y);
+            ctx.lineWidth = this.thickness * 2;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+            ctx.fillStyle = 'white';
+            ctx.fillRect(this.x - 2, this.y - 2, 4, 4);
+            ctx.restore();
+        }
+    }
+    exports.Eel = Eel;
+});
+define("Fish", ["require", "exports", "Bunas", "main", "Block", "Fishes/PinkFish", "Fishes/Pirhana", "Fishes/Eel"], function (require, exports, Bunas_7, main_7, Block_3, PinkFish_1, Pirhana_1, Eel_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.PinkFish = PinkFish_1.PinkFish;
+    exports.Pirhana = Pirhana_1.Pirhana;
+    exports.Eel = Eel_1.Eel;
+    class Fish extends Bunas_7.GameObject {
+        constructor(x, y, box) {
+            super(x, y, 1 + (Math.random() * 3), box);
+            this.speedSlow = 1.5;
+            this.speedFast = 4;
+            this.dx = this.speedSlow;
+            this.dy = 0;
+            this.turnTimer = 0;
+            this.turnTimerLimit = 20;
+            this.isLightNear = false;
+            this.isLightFar = false;
+            this.isTouch = false;
+            this.isHit = false;
+            this.isCamera = false;
+        }
+        step(dt) {
+            if (main_7.menu.open) {
+                return;
+            }
+            Fish.current.push(this);
+            this.turnTimer++;
+            this.turnTimer %= this.turnTimerLimit;
+            if (this.y < main_7.seaLevel + 50 || Block_3.default.current.some(b => b.checkCollision(this.x + this.dx, this.y + this.dy))) {
+                this.ang = this.ang + (Math.PI / 2);
+                this.dx = Math.cos(this.ang) * this.speedSlow;
+                this.dy = Math.sin(this.ang) * this.speedSlow;
+                this.turnTimer = 1;
+            }
+            this.x += this.dx * dt;
+            this.y += this.dy * dt;
+        }
+        endStep() {
+            this.isLightNear = false;
+            this.isLightFar = false;
+            this.isTouch = false;
+            this.isHit = false;
+            this.isCamera = false;
+        }
+        delete() {
+            Fish.current.splice(Fish.current.findIndex(f => f === this), 1);
+            super.delete();
+        }
+    }
+    Fish.current = [];
+    exports.Fish = Fish;
+});
+define("Guy", ["require", "exports", "Bunas", "main", "Gem", "Block", "Fish"], function (require, exports, Bunas_8, main_8, Gem_3, Block_4, Fish_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Guy extends Bunas_8.GameObject {
+        constructor(x, y) {
+            super(x, y, 2, 58);
+            this.dx = 0;
+            this.dy = 0;
+            this.dirLeft = false;
+            this.speed = 0;
+            this.width = 58;
+            this.sprite = new Bunas_8.Graphics.SpriteSheet('guy_front', 8, 3);
+            this.sprite_arm = new Bunas_8.Graphics.SpriteSheet('guy_arm', 8, 0);
+            this.lightRad = {
+                torch: [0, 600],
+                torch2: [0, 300],
+                glow: [100, 250],
+                glow2: [0, 200]
+            };
+            this.torch = new Bunas_8.Light.Source(0, 0, this.lightRad.torch[1], '#110', true, 1, 10);
+            this.torch2 = new Bunas_8.Light.Source(0, 0, this.lightRad.torch2[1], '#1108', false, 1, 10);
+            this.glow = new Bunas_8.Light.Source(0, 0, this.lightRad.glow[1], '#110', true);
+            this.glow2 = new Bunas_8.Light.Source(0, 0, this.lightRad.glow[1], '#1108', false);
+            this.hammerSwinging = false;
+            this.debris = new Bunas_8.Graphics.Emitter(0, 0, 1, [1.8, 4.2], [1.5, 2.5]);
+            this.bubbles = new Bunas_8.Graphics.Emitter(0, 0, 1, [4.5, 4.9], [0.8, 1.3], 15);
+            this.glow.bindPosition(this, 29, 29);
+            this.glow2.bindPosition(this, 29, 29);
+            this.torch.bindPosition(this, 32, 36, 0, 24, 24);
+            this.torch2.bindPosition(this, 32, 36, 0, 24, 24);
+            this.debris.setSpriteParticle((c, rand) => {
+                c.beginPath();
+                c.moveTo(-5, 0);
+                c.lineTo(0, -3);
+                c.lineTo(5, -1);
+                c.lineTo(3, 5);
+                c.lineTo(-2, 4);
+                c.fillStyle = ['#CB8F85', '#BD8781', '#AA827E'][Math.floor(rand * 3)];
+                c.fill();
+            }, 50, 0.01, [0, 6], [-0.2, 0.2]);
+            this.debris.gravity = 0.02;
+            this.debris.bindPosition(this, 27, 36, 0, 40, 40, true);
+            this.bubbles.setParticle([2, 3], '#48c4', [40, 60], 0.05);
+            this.bubbles.bindPosition(this, 32, 24, 0, 24, 24);
+        }
+        step(dt) {
+            if (main_8.menu.open) {
+                return;
+            }
+            const cosA = Math.cos(this.ang), sinA = Math.sin(this.ang);
+            if (main_8.dingy.inView && main_8.menu.reopenWait === 0 && this.checkCollision(main_8.dingy) && this.dy > 0) {
+                this.sprite.setDuration(0);
+                main_8.menu.openMenu();
+                return;
+            }
+            let newAng = -1;
+            if (this.y < main_8.seaLevel) {
                 newAng = Math.PI * 0.5;
             }
             else {
-                if (Bunas_3.Input.isPressed('KeyD')) {
-                    if (Bunas_3.Input.isPressed('KeyS')) {
+                if (Bunas_8.Input.isPressed('KeyD')) {
+                    if (Bunas_8.Input.isPressed('KeyS')) {
                         newAng = Math.PI * 0.25;
                     }
-                    else if (Bunas_3.Input.isPressed('KeyW')) {
+                    else if (Bunas_8.Input.isPressed('KeyW')) {
                         newAng = Math.PI * 1.75;
                     }
                     else {
                         newAng = 0;
                     }
                 }
-                else if (Bunas_3.Input.isPressed('KeyA')) {
-                    if (Bunas_3.Input.isPressed('KeyS')) {
+                else if (Bunas_8.Input.isPressed('KeyA')) {
+                    if (Bunas_8.Input.isPressed('KeyS')) {
                         newAng = Math.PI * 0.75;
                     }
-                    else if (Bunas_3.Input.isPressed('KeyW')) {
+                    else if (Bunas_8.Input.isPressed('KeyW')) {
                         newAng = Math.PI * 1.25;
                     }
                     else {
                         newAng = Math.PI;
                     }
                 }
-                else if (Bunas_3.Input.isPressed('KeyS')) {
+                else if (Bunas_8.Input.isPressed('KeyS')) {
                     newAng = Math.PI * 0.5;
                 }
-                else if (Bunas_3.Input.isPressed('KeyW')) {
+                else if (Bunas_8.Input.isPressed('KeyW')) {
                     newAng = Math.PI * 1.5;
                 }
             }
             if (newAng !== -1) {
-                var angDiff = newAng - this.ang;
+                let angDiff = newAng - this.ang;
                 if (angDiff > Math.PI) {
                     this.ang += 2 * Math.PI;
                 }
                 else if (angDiff < -Math.PI) {
                     this.ang -= 2 * Math.PI;
                 }
-                newAng = (newAng - this.ang) * (main_4.camera.on ? 0.02 : 0.08);
+                newAng = (newAng - this.ang) * (main_8.camera.on ? 0.02 : 0.08);
                 this.ang += 1 - (1 - newAng) * (1 - newAng);
-                if (main_4.camera.on) {
+                if (main_8.camera.on) {
                     if (this.speed < 2) {
                         this.speed += 0.1;
                     }
@@ -3780,7 +3953,7 @@ define("Guy", ["require", "exports", "Bunas", "main"], function (require, export
                 else if (this.speed < 15) {
                     this.speed += 1;
                 }
-                this.sprite.setDuration(main_4.camera.on ? 1.5 : 3);
+                this.sprite.setDuration(main_8.camera.on ? 1.5 : 3);
             }
             else {
                 if (Math.abs(this.speed) < 0.5) {
@@ -3791,260 +3964,653 @@ define("Guy", ["require", "exports", "Bunas", "main"], function (require, export
                     this.sprite.setDuration(0);
                 }
             }
-            this.dx = Math.cos(this.ang) * this.speed;
-            this.dy = this.y < main_4.seaLevel ? this.dy + 2 : Math.sin(this.ang) * this.speed;
-            if (this.y > main_4.seaLevel && this.dy + this.y < main_4.seaLevel) {
+            this.dx = cosA * this.speed;
+            this.dy = this.y < main_8.seaLevel ? this.dy + 2 : sinA * this.speed;
+            if (this.y > main_8.seaLevel && this.dy + this.y < main_8.seaLevel) {
                 this.dy *= 2;
             }
             if (newAng !== -1) {
                 this.dirLeft = this.dx < 0;
             }
-            this.x += this.dx;
-            this.y += this.dy;
-            main_4.levelBlocks
-                .forEach(function (b) {
+            this.x += this.dx * dt;
+            this.y += this.dy * dt;
+            Block_4.default.current
+                .forEach(b => {
                 if (b.inView &&
-                    b.checkCollision(_this.x, _this.y, _this.width, _this.width)) {
-                    var xDiff = void 0, yDiff = void 0;
-                    if (_this.dx > 0) {
-                        xDiff = b.x - (_this.x + _this.width);
+                    b.checkCollision(this.x, this.y, this.width, this.width)) {
+                    let xDiff, yDiff;
+                    if (this.dx > 0) {
+                        xDiff = b.x - (this.x + this.width);
                     }
                     else {
-                        xDiff = b.x + b.width - _this.x;
+                        xDiff = b.x + b.width - this.x;
                     }
-                    if (_this.dy > 0) {
-                        yDiff = b.y - (_this.y + _this.width);
+                    if (this.dy > 0) {
+                        yDiff = b.y - (this.y + this.width);
                     }
                     else {
-                        yDiff = b.y + b.width - _this.y;
+                        yDiff = b.y + b.width - this.y;
                     }
-                    if (Math.abs(xDiff / _this.dx) < Math.abs(yDiff / _this.dy)) {
+                    if (Math.abs(xDiff / this.dx) < Math.abs(yDiff / this.dy)) {
                         if (Math.abs(xDiff) > 2) {
-                            _this.dx = 0;
+                            this.dx = 0;
                         }
-                        _this.x += xDiff;
+                        this.x += xDiff;
                     }
                     else {
                         if (Math.abs(yDiff) > 2) {
-                            _this.dy = 0;
+                            this.dy = 0;
                         }
-                        _this.y += yDiff;
+                        this.y += yDiff;
                     }
                 }
-                if (b.gem && b.gem.edge) {
-                    var d = Math.pow(_this.x - b.x, 2) + Math.pow(_this.y - b.y, 2), a = Math.atan2(_this.y - b.y, _this.x - b.x);
-                    var aDiff = _this.ang - a + 3.14;
+                if (b.gems.length) {
+                    let d = Math.pow(this.x - b.x, 2) + Math.pow(this.y - b.y, 2), a = Math.atan2(this.y - b.y, this.x - b.x);
+                    let aDiff = this.ang - a + 3.14;
                     aDiff += (aDiff > Math.PI) ? -2 * Math.PI : (aDiff < -Math.PI) ? 2 * Math.PI : 0;
                     aDiff = Math.abs(aDiff);
-                    b.gem.source.ang = aDiff * 0.2;
+                    b.gems.forEach(g => g.source.ang = aDiff * 0.2);
                     if (d < 50000 || (d < 150000 && aDiff < 0.4)) {
-                        if (b.gem.source.rad < 45) {
-                            var glow = 1 - (Math.sqrt(d) / 400);
-                            b.gem.source.rad += ((10 + (glow * 70)) - b.gem.source.rad) / 8;
-                            b.gem.source.opacity = 0.2 * glow;
-                            b.gem.source.active = true;
+                        if (b.gems[0].source.rad < 45) {
+                            let glow = 1 - (Math.sqrt(d) / 400);
+                            b.gems.forEach(g => {
+                                g.source.rad += ((10 + (glow * 70)) - g.source.rad) / 8;
+                                g.source.opacity = 0.2 * glow;
+                            });
                         }
                     }
-                    else if (b.gem.source.rad > 10) {
-                        b.gem.source.rad -= b.gem.source.rad / 20;
-                        b.gem.source.opacity = 0.2 * ((b.gem.source.rad - 10) / 80);
+                    else if (b.gems[0].source.rad > 10) {
+                        b.gems.forEach(g => {
+                            g.source.rad -= g.source.rad / 20;
+                            g.source.opacity = 0.2 * ((g.source.rad - 10) / 80);
+                        });
                     }
                     else {
-                        b.gem.source.active = false;
+                        b.gems.forEach(g => g.source.rad = 0);
                     }
                 }
             });
-            if (!main_4.camera.on && Bunas_3.Input.key.down === 'Space') {
-                var colX_1 = this.x + 30 + (40 * Math.cos(this.ang)), colY_1 = this.y + 30 + (40 * Math.sin(this.ang));
-                main_4.levelBlocks.forEach(function (b) {
-                    if (b.inView && b.checkCollision(colX_1, colY_1)) {
-                        b.break();
-                        _this.speed *= 0.5;
+            Gem_3.default.freeGems.forEach(g => {
+                let d = Math.pow(this.x - g.x, 2) + Math.pow(this.y - g.y, 2), a = Math.atan2(this.y - g.y, this.x - g.x);
+                let aDiff = this.ang - a + 3.14;
+                aDiff += (aDiff > Math.PI) ? -2 * Math.PI : (aDiff < -Math.PI) ? 2 * Math.PI : 0;
+                aDiff = Math.abs(aDiff);
+                g.source.ang = aDiff * 0.2;
+                if (d < 50000 || (d < 150000 && aDiff < 0.4)) {
+                    if (g.source.rad < 45) {
+                        let glow = 1 - (Math.sqrt(d) / 400);
+                        g.source.rad += ((10 + (glow * 70)) - g.source.rad) / 8;
+                        g.source.opacity = 0.2 * glow;
                     }
-                });
+                }
+                else if (g.source.rad > 10) {
+                    g.source.rad -= g.source.rad / 20;
+                    g.source.opacity = 0.2 * ((g.source.rad - 10) / 80);
+                }
+                else {
+                    g.source.rad = 0;
+                }
+            });
+            const bat = Math.min(1, Math.ceil(main_8.HUD.battery)), blink = main_8.HUD.battery < 1 && Math.random() < 0.1;
+            if (bat === 1 && main_8.HUD.battery < 0.1) {
+                let fade = main_8.HUD.battery * 10;
+                this.torch.rad = blink ? 0 : this.lightRad.torch[1] * fade;
+                this.torch2.rad = blink ? 0 : this.lightRad.torch2[1] * fade;
+                this.glow.rad = this.lightRad.glow[0] + ((this.lightRad.glow[1] - this.lightRad.glow[0]) * fade);
+                this.glow2.rad = this.lightRad.glow2[0] + ((this.lightRad.glow2[1] - this.lightRad.glow2[0]) * fade);
             }
-            this.torch.ang = this.ang;
-            this.torch.x = this.x + 32 + (Math.cos(this.ang) * 24);
-            this.torch.y = this.y + 36 + (Math.sin(this.ang) * 24);
-            this.torch2.ang = this.torch.ang;
-            this.torch2.x = this.torch.x;
-            this.torch2.y = this.torch.y;
-            this.glow.x = this.x + 29;
-            this.glow.y = this.y + 29;
-            this.glow2.x = this.x + 29;
-            this.glow2.y = this.y + 29;
-        };
-        Guy.prototype.draw = function (ctx) {
-            var _this = this;
+            else {
+                this.torch.rad = blink ? 0 : this.lightRad.torch[bat];
+                this.torch2.rad = blink ? 0 : this.lightRad.torch2[bat];
+                this.glow.rad = this.lightRad.glow[bat];
+                this.glow2.rad = this.lightRad.glow2[bat];
+            }
+            if (!main_8.camera.on && Bunas_8.Input.isPressed('Space') && this.sprite_arm.frame !== 5) {
+                this.hammerSwinging = true;
+                this.sprite_arm.setDuration(2.5);
+            }
+            if (this.hammerSwinging) {
+                if (this.sprite_arm.frame === 5) {
+                    const colX = 29 + (40 * cosA), colY = 29 + (40 * sinA);
+                    Block_4.default.current.forEach(b => {
+                        if (b.inView && b.checkCollision(this.x + colX, this.y + colY)) {
+                            this.debris.emit(1 + Math.floor(Math.random() * 3));
+                            b.hit(2);
+                            this.speed *= 0.5;
+                        }
+                    });
+                    Gem_3.default.freeGems.forEach(g => {
+                        if (g.inView && this.distTo(g.x, g.y, colX, colY) < 30) {
+                            g.hit();
+                        }
+                    });
+                    Fish_4.Fish.current.forEach(f => {
+                        if (f.inView && f.checkCollision(this.x + colX, this.y + colY)) {
+                            f.isHit = true;
+                        }
+                    });
+                    this.hammerSwinging = false;
+                }
+                else if (this.sprite_arm.frame === 7) {
+                    this.sprite_arm.frame = 2;
+                }
+            }
+            else if (this.sprite_arm.frame === 0) {
+                this.sprite_arm.setDuration(0);
+            }
+            this.bubbles.rate = this.speed > 5 ? 6 : 20;
+        }
+        draw(ctx, dt) {
+            const cosA = Math.cos(this.ang), sinA = Math.sin(this.ang);
             ctx.save();
             ctx.imageSmoothingEnabled = true;
-            main_4.camera.focusDraw(this, function () {
-                if (main_4.camera.on) {
+            main_8.camera.focusDraw(this, () => {
+                if (main_8.camera.on) {
                     ctx.globalAlpha *= 0.5;
                 }
-                _this.sprite.draw(ctx, _this.x - 32 - (Math.cos(_this.ang) * 18), _this.y - 32 - (Math.sin(_this.ang) * 18), _this.dirLeft ? -_this.ang : _this.ang, _this.dirLeft ? [1, -1] : 1);
+                this.sprite_arm.draw(ctx, this.x + 2 + (cosA * 18), this.y + 2 + (sinA * 18), this.dirLeft ? -this.ang : this.ang, this.dirLeft ? [1, -1] : 1);
+                this.sprite.draw(ctx, this.x - 32 - (cosA * 18), this.y - 32 - (sinA * 18), this.dirLeft ? -this.ang : this.ang, this.dirLeft ? [1, -1] : 1);
             });
             ctx.imageSmoothingEnabled = false;
             ctx.restore();
-        };
-        return Guy;
-    }(Bunas_3.GameObject));
+        }
+    }
     exports.default = Guy;
 });
-define("Fish", ["require", "exports", "Bunas", "main"], function (require, exports, Bunas_4, main_5) {
+define("HUD", ["require", "exports", "Bunas", "main"], function (require, exports, Bunas_9, main_9) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var Fish = (function (_super) {
-        __extends(Fish, _super);
-        function Fish(x, y) {
-            var _this = _super.call(this, x, y, 1 + (Math.random() * 3), { width: 25, height: 13 }) || this;
-            _this.speedSlow = 1.5;
-            _this.speedFast = 4;
-            _this.dx = _this.speedSlow;
-            _this.dy = 0;
-            _this.dir = 0;
-            _this.turnTimer = 0;
-            _this.sprite = Bunas_4.Engine.getSprite('fish_1');
-            _this.blocker = new Bunas_4.Light.Block(_this.x, _this.y, [
-                { x: -12, y: -5 },
-                { x: -10, y: 5 },
-                { x: -7, y: 0 },
-                { x: -1, y: 3 },
-                { x: 2, y: 6 },
-                { x: 12, y: 2 },
-                { x: 12, y: -4 },
-                { x: 8, y: -6 },
-                { x: 3, y: -6 },
-                { x: -9, y: 0 }
-            ], _this.drawWithAlpha.bind(_this), false, '#f0f2');
-            _this.light = new Bunas_4.Light.Source(x, y, 50, '#f0f2', false);
-            return _this;
-        }
-        Fish.prototype.step = function () {
-            var _this = this;
-            this.turnTimer++;
-            if (this.turnTimer > 20) {
-                var gxDiff = this.x - main_5.guy.x, gyDiff = this.y - main_5.guy.y;
-                if ((gxDiff * gxDiff) + (gyDiff * gyDiff) < 15000) {
-                    this.dir = Math.atan2(gyDiff, gxDiff);
-                    this.dx = Math.cos(this.dir) * this.speedFast;
-                    this.dy = Math.sin(this.dir) * this.speedFast;
-                }
-                else {
-                    this.dir = this.dir + (Math.random() * Math.PI / 8) - Math.PI / 16;
-                    this.dx = Math.cos(this.dir) * this.speedSlow;
-                    this.dy = Math.sin(this.dir) * this.speedSlow;
-                    this.turnTimer = 0;
-                }
-            }
-            if (this.y < main_5.seaLevel || main_5.levelBlocks.some(function (b) { return b.checkCollision(_this.x + _this.dx, _this.y + _this.dy); })) {
-                this.dir = this.dir + (Math.PI / 2);
-                this.dx = Math.cos(this.dir) * this.speedSlow;
-                this.dy = Math.sin(this.dir) * this.speedSlow;
-                this.turnTimer = 0;
-            }
-            this.x += this.dx;
-            this.y += this.dy;
-            this.light.x = this.x + 12;
-            this.light.y = this.y + 6;
-            this.blocker.x = this.x + 12;
-            this.blocker.y = this.y + 6;
-            this.blocker.ang = this.dir;
-        };
-        Fish.prototype.drawWithAlpha = function (ctx, alpha) {
-            var _this = this;
-            if (alpha === void 0) { alpha = 1; }
-            ctx.save();
-            ctx.translate(this.x + 12, this.y + 6);
-            ctx.rotate(this.dir);
-            main_5.camera.focusDraw(this, function () { return ctx.drawImage(_this.sprite, -12, -6); });
-            ctx.restore();
-        };
-        Fish.prototype.draw = function (ctx) {
-            this.drawWithAlpha(ctx, 1);
-        };
-        return Fish;
-    }(Bunas_4.GameObject));
-    exports.default = Fish;
-});
-define("HUD", ["require", "exports", "Bunas", "main"], function (require, exports, Bunas_5, main_6) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    var default_4 = (function () {
-        function default_4() {
+    class default_3 {
+        constructor() {
             this.air = 1;
-            this.airDec = 0.0005;
-            this.battery = 1;
-            this.batteryIcon = Bunas_5.Engine.getSprite('icon_battery');
+            this.airDec = 0;
+            this.battery = 5;
+            this.batteryDec = 0;
+            this.statsIcon = Bunas_9.Engine.getSprite('icon_stats');
         }
-        default_4.prototype.step = function () {
-            if (main_6.guy.y > main_6.seaLevel + 50) {
+        step(dt) {
+            if (main_9.menu.open) {
+                return;
+            }
+            if (main_9.guy.y > main_9.seaLevel + 50) {
                 if (this.air > 0.01) {
-                    this.air -= this.airDec;
+                    this.air -= this.airDec * dt;
                 }
             }
             else if (this.air < 0.24) {
-                this.air += 0.01;
+                this.air += 0.01 * dt;
             }
-        };
-        default_4.prototype.draw = function (ctx) {
-            if (this.air < 0.24 && !main_6.camera.drawingPhoto) {
+            if (this.battery > 0) {
+                this.battery -= this.batteryDec * dt;
+            }
+        }
+        draw(ctx) {
+            if (this.air < 0.24 && !main_9.camera.drawingPhoto) {
                 ctx.save();
                 ctx.filter = 'saturate(' + Math.floor(400 * this.air) + '%)';
-                ctx.drawImage(Bunas_5.Engine.getCanvasEl(), 0, 0);
+                ctx.drawImage(Bunas_9.Engine.getCanvasEl(), 0, 0);
                 ctx.restore();
             }
-            if (!main_6.camera.drawingPhoto) {
+            if (!main_9.camera.drawingPhoto) {
                 ctx.save();
-                ctx.globalAlpha = 0.4;
-                ctx.beginPath();
-                ctx.moveTo(60, Bunas_5.Engine.cH - 60);
-                ctx.lineTo(60, 60 + ((Bunas_5.Engine.cH - 120) * (1 - this.air)));
-                ctx.strokeStyle = this.air < 0.25 ? '#FFF' : '#555';
-                ctx.lineCap = 'round';
+                ctx.translate(20, Bunas_9.Engine.cH - 140);
+                ctx.drawImage(this.statsIcon, 0, 0);
+                ctx.globalAlpha = 0.35;
                 ctx.lineWidth = 18;
-                ctx.stroke();
-                ctx.strokeStyle = this.air < 0.25 ? '#F6A' : '#AAF';
                 ctx.lineCap = 'round';
-                ctx.lineWidth = 22;
+                ctx.strokeStyle = this.air < 0.20 ? '#e45692' : '#fff';
+                ctx.translate(90, 30);
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.floor(200 * this.air), 0);
+                ctx.stroke();
+                ctx.setLineDash([30, 10]);
+                ctx.lineCap = 'butt';
+                ctx.strokeStyle = this.battery < 1 ? '#e45692' : '#fff';
+                ctx.translate(20, 45);
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.floor(40 * Math.ceil(this.battery)), 0);
                 ctx.stroke();
                 ctx.restore();
             }
-        };
-        return default_4;
-    }());
-    exports.default = default_4;
+        }
+    }
+    exports.default = default_3;
 });
-define("main", ["require", "exports", "Bunas", "layout", "Camera", "Guy", "Fish", "HUD"], function (require, exports, Bunas_6, layout_1, Camera_1, Guy_1, Fish_1, HUD_1) {
+define("Menu", ["require", "exports", "Bunas"], function (require, exports, Bunas_10) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.levelBlocks = [], exports.score = { money: 0 };
-    exports.seaLevel = 500, exports.gems = [
-        { name: 'Aquamarine', color: '#19A', pureColor: '#4CD', value: 1 },
-        { name: 'Rhodonite', color: '#C15', pureColor: '#F48', value: 3 },
-        { name: 'Amethyst', color: '#A0C', pureColor: '#D0F', value: 8 },
-        { name: 'Lapis', color: '#00C', pureColor: '#31F', value: 15 },
-        { name: 'Amber', color: '#CA2', pureColor: '#FC5', value: 24 },
-        { name: 'Jade', color: '#2A1', pureColor: '#5D4', value: 35 },
-        { name: 'Obsidian', color: '#405', pureColor: '#738', value: 50 }
-    ];
-    var wave, wavePulse = 0;
-    var RNG = [0x80000000, 1103515245, 12345, 29];
-    function rand(to, from, int) {
-        if (to === void 0) { to = 1; }
-        if (from === void 0) { from = 0; }
-        if (int === void 0) { int = false; }
+    class default_4 {
+        constructor() {
+            this.open = false;
+            this.reopenWait = 0;
+            this.nav = [
+                {
+                    open: this.nextItem.bind(this),
+                    w: this.nextItem.bind(this, 'up'),
+                    a: this.nextItem.bind(this, 'left'),
+                    s: this.nextItem.bind(this, 'down'),
+                    d: this.nextItem.bind(this, 'right'),
+                    sp: this.buyItem.bind(this)
+                },
+                {
+                    open: () => this.sellButton.classList.add('selected'),
+                    close: () => this.sellButton.classList.remove('selected'),
+                    a: () => 0,
+                    d: () => 2,
+                },
+                {
+                    open: this.toggleAlbum.bind(this, true),
+                    a: this.toggleAlbum.bind(this, false),
+                    sp: () => 3
+                },
+                {
+                    open: this.nextPhoto.bind(this),
+                    close: this.closePhoto.bind(this),
+                    a: this.nextPhoto.bind(this, true),
+                    d: this.nextPhoto.bind(this),
+                    sp: () => 2,
+                }
+            ];
+            this.currentNav = 0;
+            this.pageCount = 5;
+            this.currentItem = -1;
+            this.currentPhoto = -1;
+            this.pageBg = Bunas_10.Engine.getBackground('pageBg').src;
+            this.el = document.createElement('div');
+            this.el.classList.add('book');
+            this.el.style.backgroundImage = 'url(' + this.pageBg + ')';
+            document.body.appendChild(this.el);
+            [
+                '',
+                `
+        <div class="content">
+          <h2>Equipment for Sale</h2>
+          <div class="panel-contain">
+            <div class="panel"><img src="${Bunas_10.Engine.getSprite('shop_fins1').src}"/></div>
+            <div class="panel"><img src="${Bunas_10.Engine.getSprite('shop_fins2').src}"/></div>
+            <div class="panel"><img src="${Bunas_10.Engine.getSprite('shop_fins3').src}"/></div>
+
+            <div class="panel"><img src="${Bunas_10.Engine.getSprite('shop_tank1').src}"/></div>
+            <div class="panel"><img src="${Bunas_10.Engine.getSprite('shop_tank2').src}"/></div>
+            <div class="panel"><img src="${Bunas_10.Engine.getSprite('shop_tank3').src}"/></div>
+
+            <div class="panel"><img src="${Bunas_10.Engine.getSprite('shop_torch1').src}"/></div>
+            <div class="panel"><img src="${Bunas_10.Engine.getSprite('shop_torch2').src}"/></div>
+            <div class="panel"><img src="${Bunas_10.Engine.getSprite('shop_torch3').src}"/></div>
+          </div>
+        </div>
+      `,
+                `
+        <div class="content">
+          <h2>Rock & Minerals Monthly</h2>
+          <div id="sellButton">Sell All</div>
+        </div>
+      `,
+                '',
+                `
+        <div class="content">
+          <h2>Wonders of the Deep</h2>
+          <div class="panel-contain">
+            <div class="panel md"></div>
+            <div class="panel md"></div>
+            <div class="panel md"></div>
+            <div class="panel md"></div>
+            <div class="panel lg"></div>
+          </div>
+        </div>
+      `,
+            ].forEach((html, i) => {
+                let page = document.createElement('div');
+                page.classList.add('page');
+                page.innerHTML = html;
+                this.el.appendChild(page);
+                if (i === 1) {
+                    this.shop = page.querySelector('.panel-contain');
+                }
+            });
+            this.album = document.createElement('div');
+            this.album.classList.add('album');
+            this.el.appendChild(this.album);
+            this.sellButton = document.getElementById('sellButton');
+            const css = document.createElement('style'), anispeed = 0.6, c_bg = '#f8f8f8', c_border = '#d8d8d8', c_selected = '#aaa';
+            css.innerText = `
+      .book, .page {
+        background-repeat: no-repeat;
+      }
+
+      .book {
+        position: fixed;
+        top: 120vh;
+        left: calc(50vw - 268px);
+        width: 536px;
+        height: 713px;
+        opacity: 0;
+        pointer-events: none;
+        perspective: 1500px;
+        perspective-origin: 0 50%;
+        background-position: 2px bottom; 
+        transform: rotate(40deg);
+        transition:
+          left ${anispeed}s,
+          top ${anispeed}s,
+          opacity ${anispeed}s,
+          transform ${anispeed}s;
+      }
+      .book.open {
+        opacity: 1;
+        transform: rotate(0deg);
+        top: calc(50vh - 360px);
+         transition:
+          left ${anispeed}s,
+          top ${anispeed}s ease-out,
+          opacity ${anispeed}s,
+          transform ${anispeed}s;
+      }
+      .book.turned {
+        left: 50vw;
+      }
+
+      .page {
+        position: absolute;
+        top: 0px;
+        left: 0;
+        width: 527px;
+        height: calc(100% - 5px);
+        border: 1px solid ${c_border};
+        border-radius: 5px;
+        background: ${c_bg};
+        transform-origin: 0 0;
+        transition:
+          transform ${anispeed}s linear,
+          z-index 0s linear ${anispeed / 2}s;
+      }
+      .page.turned {
+        transform: rotate3d(0, 1, 0, -180deg);
+        transition:
+          transform ${anispeed},
+          z-index 0s ${anispeed / 2}s;
+      }
+      .page:nth-child(2n) {
+        transform: rotate3d(0, 1, 0, 180deg);
+        transform-origin: 100% 0;
+        left: -529px;
+      }
+      .page:nth-child(2n).turned {
+        transform: unset;
+      }
+      .page:nth-child(1) {
+        background: url('${Bunas_10.Engine.getBackground('page0').src}');
+        border: none;
+      }
+      .page:nth-child(2) {
+        background: url('${Bunas_10.Engine.getBackground('page1').src}');
+        border: none;
+        left: -527px;
+      }
+
+      .album {
+        position: absolute;
+        top: 30px;
+        left: 280px;
+        width: 0;
+        transition:
+          top ${anispeed}s,
+          left ${anispeed}s,
+          width ${anispeed}s;
+      }
+      .album.open {
+        top: 16px;
+        left: -550px;
+        width: 550px;
+        transition:
+          top ${anispeed}s 0.2s,
+          left ${anispeed}s 0.2s,
+          width ${anispeed}s 0.2s;
+      }
+
+      .album img {
+        display: none;
+        position: absolute;
+        left: 0;
+        z-index: 25;
+        width: 250px;
+        height: 188px;
+        border: 12px solid white;
+        border-bottom-width: 20px;
+        box-shadow: 0 5px 10px 4px #0004;
+        transition: all ${anispeed}s;
+      }
+      .album img:nth-child(2n) {
+        left: 50%;
+      }
+
+      .album.open img.open {
+        display: block;
+        top: 50px !important;
+        left: 30px;
+        z-index: 30;
+        width: 500px;
+        height: 375px;
+        border-width: 24px;
+        border-bottom-width: 40px;
+        transform: rotate(0deg);
+        transition: all ${anispeed}s, z-index 0s;
+      }
+
+      .content {
+        width: calc(100% - 50px);
+        margin: 0 auto;
+        font-family: "Times New Roman";
+        font-size: 20px;
+      }
+      h2 {
+        padding-top: 20px;
+        text-align: center;
+        font-size: 28px;
+        font-weight: 200;
+      }
+      .panel-contain {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
+      .panel {
+        text-align: center;
+        border: 2px dashed ${c_border};
+        width: 30%;
+        height: 125px;
+        margin: 25px 0;
+      }
+      .panel.md {
+        width: 45%;
+        height: 150px;
+        margin: 20px 0;
+      }
+      .panel.lg {
+        width: 100%;
+        height: 150px;
+      }
+      .panel.selected {
+        border-color: ${c_selected};
+      }
+      .panel img {
+        filter: grayscale(1);
+        transition: filter 0.2s, transform 0.2s;
+      }
+      .panel.selected img {
+        transform: scale(1.2);
+        filter: unset;
+      }
+
+      #sellButton.selected {
+        font-weight: bold;
+      }
+    `;
+            for (let i = 1; i <= this.pageCount; i++) {
+                css.innerText += `
+        .page:nth-child(${i}) {z-index: ${1 + this.pageCount - i}0;}
+        .page:nth-child(${i}).turned {z-index: -${1 + this.pageCount - i}0;}`;
+            }
+            for (let i = 0; i < 6; i++) {
+                css.innerText += `
+        .album img:nth-child(${i + 1}) {
+          display: block;
+          top: ${Math.floor(i / 2) * 223}px;
+          transform: rotate(${Math.floor(Math.random() * 20) - 10}deg);
+        }`;
+            }
+            document.head.appendChild(css);
+        }
+        step() {
+            if (this.reopenWait > 0) {
+                this.reopenWait--;
+            }
+            if (this.open) {
+                [['KeyA', 'a'], ['KeyD', 'd'], ['KeyW', 'w'], ['KeyS', 's'], ['Space', 'sp']]
+                    .forEach(key => {
+                    if (Bunas_10.Input.key.down === key[0] && this.nav[this.currentNav][key[1]]) {
+                        let nextNav = this.nav[this.currentNav][key[1]]();
+                        if (nextNav || nextNav === 0) {
+                            if (this.nav[this.currentNav].close) {
+                                this.nav[this.currentNav].close();
+                            }
+                            this.currentNav = nextNav;
+                            if (this.nav[this.currentNav].open) {
+                                this.nav[this.currentNav].open();
+                            }
+                        }
+                        this.el.setAttribute('state', this.currentNav.toString());
+                    }
+                });
+            }
+        }
+        openMenu() {
+            this.el.classList.add('open');
+            this.open = true;
+            setTimeout(() => {
+                this.el.classList.add('turned');
+                this.el.children[0].classList.add('turned');
+                this.el.children[1].classList.add('turned');
+            }, 900);
+        }
+        closeMenu() {
+            this.el.classList.remove('turned');
+            this.album.classList.remove('open');
+            Array.from(this.el.children).forEach(p => p.classList.remove('turned'));
+            setTimeout(() => {
+                this.el.classList.remove('open');
+                this.open = false;
+                this.reopenWait = 40;
+            }, 400);
+        }
+        nextItem(dir) {
+            if (this.currentItem > -1) {
+                this.shop.children[this.currentItem].classList.remove('selected');
+            }
+            if (dir === 'left') {
+                this.currentItem -= 1;
+                if (this.currentItem < 0) {
+                    this.currentItem = -1;
+                    this.closeMenu();
+                    return;
+                }
+            }
+            else if (dir === 'right') {
+                if ([2, 5, 8].indexOf(this.currentItem) > -1) {
+                    return 1;
+                }
+                this.currentItem += 1;
+            }
+            else if (dir === 'up') {
+                this.currentItem -= this.currentItem > 2 ? 3 : 0;
+            }
+            else if (dir === 'down') {
+                this.currentItem += this.currentItem < 6 ? 3 : 0;
+            }
+            if (this.currentItem > -1) {
+                this.shop.children[this.currentItem].classList.add('selected');
+            }
+        }
+        buyItem() {
+        }
+        toggleAlbum(on) {
+            if (on) {
+                this.el.children[2].classList.add('turned');
+                this.el.children[3].classList.add('turned');
+                this.album.classList.add('open');
+                return 2;
+            }
+            else {
+                this.el.children[2].classList.remove('turned');
+                this.el.children[3].classList.remove('turned');
+                this.album.classList.remove('open');
+                return 1;
+            }
+        }
+        nextPhoto(prev = false) {
+            if (this.album.children.length === 0) {
+                this.closePhoto();
+            }
+            if (this.currentPhoto !== -1) {
+                this.album.children[this.currentPhoto].classList.remove('open');
+            }
+            this.currentPhoto += prev ? -1 : 1;
+            if (this.currentPhoto === -1 || this.currentPhoto === this.album.children.length) {
+                this.closePhoto();
+            }
+            else {
+                this.album.children[this.currentPhoto].classList.add('open');
+            }
+        }
+        closePhoto() {
+            if (this.album.children[this.currentPhoto]) {
+                this.album.children[this.currentPhoto].classList.remove('open');
+            }
+            this.currentPhoto = -1;
+            this.currentNav = 1;
+        }
+        addPhoto(src) {
+            let image = document.createElement('img');
+            image.src = src;
+            this.album.appendChild(image);
+        }
+    }
+    exports.default = default_4;
+});
+define("main", ["require", "exports", "Bunas", "layout", "Camera", "Guy", "Fish", "HUD", "Menu"], function (require, exports, Bunas_11, layout_1, Camera_1, Guy_1, Fish_5, HUD_1, Menu_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.score = { money: 0 };
+    exports.seaLevel = 500;
+    let wave, wavePulse = 0;
+    const RNGSeed = 13, RNG = [0x80000000, 1103515245, 12345, RNGSeed];
+    function rand(to = 1, from = 0, int = false) {
         RNG[3] = (RNG[1] * RNG[3] + RNG[2]) % RNG[0];
-        var num = from + ((to - from) * RNG[3] / RNG[0]);
+        const num = from + ((to - from) * RNG[3] / RNG[0]);
         return int ? Math.floor(num) : num;
     }
     exports.rand = rand;
     ;
-    Bunas_6.Engine.preLoad({
+    Bunas_11.Engine.preLoad({
         sprites: {
             guy_front: 'assets/sprites/guy_front.png',
+            guy_arm: 'assets/sprites/guy_arm.png',
             fish_1: 'assets/sprites/fish_1.png',
-            icon_battery: 'assets/sprites/icon_battery.png'
+            fish_2: 'assets/sprites/fish_2.png',
+            fish_piranha: 'assets/sprites/fish_piranha.png',
+            icon_stats: 'assets/sprites/icon_stats.png',
+            dingy: 'assets/sprites/dingy.png',
+            shop_fins1: 'assets/sprites/fins1.png',
+            shop_fins2: 'assets/sprites/fins1.png',
+            shop_fins3: 'assets/sprites/fins1.png',
+            shop_tank1: 'assets/sprites/tank1.png',
+            shop_tank2: 'assets/sprites/tank1.png',
+            shop_tank3: 'assets/sprites/tank1.png',
+            shop_torch1: 'assets/sprites/fins1.png',
+            shop_torch2: 'assets/sprites/fins1.png',
+            shop_torch3: 'assets/sprites/fins1.png',
         },
         bgs: {
             bgTile: 'assets/sprites/bgTile.png',
@@ -4053,51 +4619,79 @@ define("main", ["require", "exports", "Bunas", "layout", "Camera", "Guy", "Fish"
             block_bg: 'assets/sprites/block_bg.png',
             block_fg: 'assets/sprites/block_fg.png',
             caveBg: 'assets/sprites/caveBg.png',
-            gemsTile: 'assets/sprites/gemsTile.png'
+            gemsTile: 'assets/sprites/gemsTile.png',
+            pageBg: 'assets/sprites/pageBg.png',
+            page0: 'assets/sprites/page0.png',
+            page1: 'assets/sprites/page1.png',
+            page2: 'assets/sprites/page2.png',
+            page3: 'assets/sprites/page3.png',
+            page4: 'assets/sprites/page4.png',
         },
     });
-    Bunas_6.Engine.init(start);
-    function start() {
-        Bunas_6.Input.setCursor('none');
-        Bunas_6.World.area.addBackground('#6C8AA4');
-        Bunas_6.World.area.addBackground('bgTile', false, 0, { x: 0.7, y: 1 }, 0, { x: true, y: false });
-        wave = Bunas_6.World.area.addBackground('bgWave', false, 1, 1, { x: 0, y: exports.seaLevel - 17 }, { x: true, y: false });
-        Bunas_6.World.area.toggleLight();
-        Bunas_6.World.area.view.z = 1;
-        Bunas_6.Debug.toggle();
-        Bunas_6.Debug.defaultOptions.view = false;
-        Bunas_6.Debug.defaultOptions.input = false;
-        Bunas_6.Debug.log('WASD to move', true);
-        Bunas_6.Debug.log('Space when next to blocks', true);
-        Bunas_6.Debug.log('Swim to bottom left till you see fish, press M, then Arrow Keys and Space', true);
-        var gridWidth = 60, gridHeight = 100, gridCellWidth = 96;
-        layout_1.default(gridWidth, gridHeight, gridCellWidth, Math.ceil(exports.seaLevel / gridCellWidth) + 2);
-        exports.guy = new Guy_1.default(500, 600);
-        for (var i = 0; i < 100; i++) {
-            new Fish_1.default(1900 + (Math.random() * 500), 2000 + (Math.random() * 500));
-        }
-        Bunas_6.World.area.view.track(exports.guy, [
-            (Bunas_6.Engine.cH / 2) - 28,
-            (Bunas_6.Engine.cW / 2) + 28,
-            (Bunas_6.Engine.cH / 2) + 28,
-            (Bunas_6.Engine.cW / 2) - 28
-        ], 0.2, [0, 0, gridWidth * gridCellWidth, gridHeight * gridCellWidth]);
-        exports.camera = new Camera_1.default(Bunas_6.World.area.view);
-        exports.HUD = new HUD_1.default();
+    let canWidth = window.innerWidth, canHeight = window.innerHeight;
+    if (canWidth > 1920) {
+        canWidth = 1920;
+        canHeight = Math.ceil(canHeight * (canWidth / window.innerWidth));
     }
-    Bunas_6.Engine.postStep = function () {
-        wavePulse += 0.01;
+    Bunas_11.Engine.init(start, null, canWidth, canHeight);
+    function start() {
+        Bunas_11.Input.setCursor('none');
+        Bunas_11.World.area.addBackground('#6C8AA4');
+        Bunas_11.World.area.addBackground('bgTile', false, 0, { x: 0.7, y: 1 }, 0, { x: true, y: false });
+        wave = Bunas_11.World.area.addBackground('bgWave', false, 1, 1, { x: 0, y: exports.seaLevel - 17 }, { x: true, y: false });
+        exports.dingy = new Dingy();
+        Bunas_11.World.area.toggleLight();
+        const gridWidth = 60, gridHeight = 100, gridCellWidth = 96;
+        layout_1.default(gridWidth, gridHeight, gridCellWidth, Math.ceil(exports.seaLevel / gridCellWidth) + 2);
+        exports.guy = new Guy_1.default(0, 0);
+        for (let i = 0; i < 20; i++) {
+        }
+        for (let i = 0; i < 10; i++) {
+            new Fish_5.PinkFish(1000 + (Math.random() * 400), 5600 + (Math.random() * 500));
+        }
+        new Fish_5.Eel(600, 600, 140);
+        Bunas_11.World.area.view.track(exports.guy, [
+            (Bunas_11.Engine.cH / 2) - 28,
+            (Bunas_11.Engine.cW / 2) + 28,
+            (Bunas_11.Engine.cH / 2) + 28,
+            (Bunas_11.Engine.cW / 2) - 28
+        ], 0.2, [0, 0, gridWidth * gridCellWidth, gridHeight * gridCellWidth]);
+        exports.camera = new Camera_1.default(Bunas_11.World.area.view);
+        exports.HUD = new HUD_1.default();
+        exports.menu = new Menu_1.default();
+        Bunas_11.Debug.toggle();
+        Bunas_11.Debug.logObject(exports.guy, true);
+    }
+    Bunas_11.Engine.postStep = function (dt) {
+        wavePulse += 0.01 * dt;
         wavePulse %= Math.PI * 2;
         wave.offset.x = -800 - (Math.sin(wavePulse) * 800);
-        exports.camera.step();
-        exports.HUD.step();
+        exports.camera.step(dt);
+        exports.HUD.step(dt);
+        exports.menu.step();
     };
-    Bunas_6.Engine.preDraw = function (ctx) {
-        var depth = Math.max(Math.min(1, (exports.guy.y - exports.seaLevel) / 4000), 0);
-        Bunas_6.World.area.light.bgLight = 'rgba(25, 60, 100, ' + (1 - Math.pow(1 - depth, 3)) + ')';
+    Bunas_11.Engine.preDraw = function (ctx) {
+        let depth = Math.max(Math.min(1, (exports.guy.y - exports.seaLevel) / 4000), 0);
+        Bunas_11.World.area.light.bgLight = 'rgba(25, 60, 100, ' + (1 - Math.pow(1 - depth, 3)) + ')';
     };
-    Bunas_6.Engine.postDraw = function (ctx) {
+    Bunas_11.Engine.postDraw = function (ctx, dt) {
         exports.camera.draw(ctx);
         exports.HUD.draw(ctx);
     };
+    class Dingy extends Bunas_11.GameObject {
+        constructor() {
+            super(400, exports.seaLevel - 34, 0);
+            this.sprite = Bunas_11.Engine.getSprite('dingy');
+            this.colBox.width = this.sprite.width;
+            this.colBox.height = this.sprite.height;
+        }
+        draw(ctx) {
+            ctx.save();
+            ctx.imageSmoothingEnabled = true;
+            ctx.translate(this.x, this.y + (Math.cos(wavePulse * 3) * 5));
+            ctx.rotate(Math.sin(wavePulse * 3) / 15);
+            ctx.drawImage(this.sprite, 0, 0);
+            ctx.restore();
+        }
+    }
 });

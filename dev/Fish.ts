@@ -1,84 +1,64 @@
-import { GameObject, Engine, Light } from 'Bunas';
-import { levelBlocks, guy, camera, seaLevel } from 'main';
+import { GameObject } from 'Bunas';
+import { seaLevel, menu } from 'main';
+import Block from './Block';
 
-export default class Fish extends GameObject {
-  private readonly speedSlow = 1.5; 
-  private readonly speedFast = 4;
-  private dx: number = this.speedSlow;
-  private dy: number = 0;
-  private dir: number = 0;
-  private turnTimer: number = 0;
-  private light: Light.Source;
-  private blocker: Light.Block;
+export { PinkFish } from 'Fishes/PinkFish';
+export { Pirhana } from 'Fishes/Pirhana';
+export { Eel } from 'Fishes/Eel';
+
+export class Fish extends GameObject {
+  public static current: Fish[] = [];
+
+  protected speedSlow = 1.5; 
+  protected speedFast = 4;
+  protected dx: number = this.speedSlow;
+  protected dy: number = 0;
+  protected turnTimer: number = 0;
+  protected turnTimerLimit: number = 20;
+  public isLightNear: boolean = false;
+  public isLightFar: boolean = false;
+  public isTouch: boolean = false;
+  public isHit: boolean = false;
+  public isCamera: boolean = false;
 
   constructor(
     x: number,
-    y: number
+    y: number,
+    box: number | {width: number, height: number}
   ) {
-    super(x, y, 1 + (Math.random() * 3), {width: 25, height: 13});
-    this.sprite = Engine.getSprite('fish_1');
-    this.blocker = new Light.Block(
-      this.x, this.y, [
-        {x: -12, y: -5},
-        {x: -10, y:  5},
-        {x:  -7, y:  0},
-        {x:  -1, y:  3},
-        {x:   2, y:  6},
-        {x:  12, y:  2},
-        {x:  12, y: -4},
-        {x:   8, y: -6},
-        {x:   3, y: -6},
-        {x:  -9, y:  0}
-      ],
-      this.drawWithAlpha.bind(this),
-      false,
-      '#f0f2'
-    );
-    this.light = new Light.Source(x, y, 50, '#f0f2', false);
+    super(x, y, 1 + (Math.random() * 3), box);
   }
 
-  public step() {
+  public step(dt: number) {
+    if (menu.open) {
+      return;
+    }
+    Fish.current.push(this);
+
     this.turnTimer++;
-    if (this.turnTimer > 20) {
-      let gxDiff = this.x - guy.x,
-          gyDiff = this.y - guy.y;
-      if ((gxDiff * gxDiff) + (gyDiff * gyDiff) < 15000) {
-        this.dir = Math.atan2(gyDiff, gxDiff);
-        this.dx = Math.cos(this.dir) * this.speedFast;
-        this.dy = Math.sin(this.dir) * this.speedFast;
-      } else {
-        this.dir = this.dir + (Math.random() * Math.PI / 8) - Math.PI / 16;
-        this.dx = Math.cos(this.dir) * this.speedSlow;
-        this.dy = Math.sin(this.dir) * this.speedSlow;
-        this.turnTimer = 0;
-      }
+    this.turnTimer %= this.turnTimerLimit;
+
+    if (this.y < seaLevel + 50 || Block.current.some(b => b.checkCollision(this.x + this.dx, this.y + this.dy))) {
+      this.ang = this.ang + (Math.PI / 2);
+      this.dx = Math.cos(this.ang) * this.speedSlow;
+      this.dy = Math.sin(this.ang) * this.speedSlow;
+      this.turnTimer = 1;
     }
 
-    if (this.y < seaLevel || levelBlocks.some(b => b.checkCollision(this.x + this.dx, this.y + this.dy))) {
-      this.dir = this.dir + (Math.PI / 2);
-      this.dx = Math.cos(this.dir) * this.speedSlow;
-      this.dy = Math.sin(this.dir) * this.speedSlow;
-      this.turnTimer = 0;
-    }
-
-    this.x += this.dx;
-    this.y += this.dy;
-    this.light.x = this.x + 12;
-    this.light.y = this.y + 6;
-    this.blocker.x = this.x + 12;
-    this.blocker.y = this.y + 6;
-    this.blocker.ang = this.dir;
+    this.x += this.dx * dt;
+    this.y += this.dy * dt;
   }
 
-  public drawWithAlpha(ctx: CanvasRenderingContext2D, alpha: number = 1) {
-    ctx.save();
-      ctx.translate(this.x + 12, this.y + 6);
-      ctx.rotate(this.dir);
-      camera.focusDraw(this, () => ctx.drawImage(this.sprite as HTMLImageElement, -12, -6));
-    ctx.restore();
+  public endStep() {
+    this.isLightNear = false;
+    this.isLightFar = false;
+    this.isTouch = false;
+    this.isHit = false;
+    this.isCamera = false;
   }
 
-  public draw(ctx: CanvasRenderingContext2D) {
-    this.drawWithAlpha(ctx, 1);
+  public delete() {
+    Fish.current.splice(Fish.current.findIndex(f => f === this), 1);
+    super.delete();
   }
 }

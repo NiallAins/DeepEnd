@@ -1,22 +1,25 @@
 import {
   GameObject,
   Light,
-	Graphics,
-	Engine
-} from './Bunas';
-import { levelBlocks, camera, gems, rand } from './main';
+	Graphics
+} from 'Bunas';
+import { camera, rand } from 'main';
+import Gem from 'Gem';
 
 let
 	blockWidth: number,
 	tileWidth: number,
 	bgTileSet: Graphics.TileSet,
 	fgTileSet: Graphics.TileSet,
-	gemsTile: Graphics.TileSet,
 	caveBg: Graphics.TileSet;
 
-export default class extends GameObject {
+export default class Block extends GameObject {
+	public static current: Block[] = [];
+
 	public width: number;
-	public gem: {type: number, ang: number, x: number, y: number, source: Light.Source, edge: boolean};
+	public gems: Gem[] = [];
+	private damage: number = 0;
+	private maxDamage: number;
 	private isCave: boolean = false;
 	private randTile: number;
 	private lightBlock: Light.Block;
@@ -27,56 +30,35 @@ export default class extends GameObject {
 		fgType: [0, 0, 0, 0],
 		x: [0, 0, 0, 0],
 		y: [0, 0, 0, 0]
-	}
+	};
 
 	constructor(
 		x: number,
 		y: number,
-		gem: number = -1,
+		gemType: number = -1,
 		public hardness: number,
 		blockLayout?: boolean[]
 	) {
 		super(x, y, 0.1, blockWidth, {x: -tileWidth, y: -tileWidth, width: blockWidth * 2});
 		this.width = blockWidth;
-		levelBlocks.push(this);
-		if (gem > -1) {
-			let	ang = rand(6.28, 0),
+		Block.current.push(this);
+		if (gemType > -1) {
+			let gemCount = rand(4, 1, true);
+			for (let i = 0; i < gemCount; i += 1) {
+				let
+					ang = rand(6.28, 0),
 					dist = rand(25, 0, true);
-			this.gem = {
-				type: gem,
-				ang: ang,
-				x: this.x + tileWidth + (Math.cos(ang) * dist),
-				y: this.y + tileWidth + (Math.sin(ang) * dist),
-				source: null,
-				edge: false
-			};
-			this.gem.source  = new Light.Source(this.gem.x, this.gem.y, 1, gems[gem].color + '0', false);
-			this.gem.source.customMask = ((ctx, rad, color) => {
-				[
-					{r: 0.6, s: 0, f: 6.283},
-					{r: 0.85, s: ang, f: 0.5 + ang},
-					{r: 1, s: 2.3 + ang, f: 2.8 + ang},
-					{r: 0.7, s: 4 + ang, f: 4.5 + ang}
-				].forEach(arc => {
-					let grdRad = ctx.createRadialGradient(0, 0, 0, 0, 0, rad * arc.r);
-					grdRad.addColorStop(0, color);
-					grdRad.addColorStop(1, color.substring(0, 7) + '00');
-					ctx.fillStyle = grdRad;
-					ctx.beginPath();
-						ctx.moveTo(0, 0);
-						ctx.arc(
-							0, 0,
-							rad * arc.r,
-							arc.s, arc.f
-						);
-						ctx.lineTo(0, 0);
-					ctx.fill();
-				})
-			}).bind(this);
-			this.gem.source.active = false;
+				this.gems.push(new Gem(
+					this.x + tileWidth + (Math.cos(ang) * dist),
+					this.y + tileWidth + (Math.sin(ang) * dist),
+					gemType,
+					ang
+				));
+			}
 		}
 		this.randTile = rand(4, 0, true);
 		this.setTiles(blockLayout);
+		this.maxDamage = (this.hardness + 1) * 3;
 	}
 
 	public static setDefaultWidths(width: number) {
@@ -84,7 +66,6 @@ export default class extends GameObject {
 		tileWidth = width / 2;
 		bgTileSet = new Graphics.TileSet('block_bg', blockWidth, blockWidth);
 		fgTileSet = new Graphics.TileSet('block_fg', tileWidth, tileWidth);
-		gemsTile = new Graphics.TileSet('gemsTile', tileWidth, tileWidth);
 		caveBg = new Graphics.TileSet('caveBg', 64, 64);
 	}
 
@@ -99,9 +80,10 @@ export default class extends GameObject {
 			for (let y = -1; y <= 1; y++) {
 				for (let x = -1; x <= 1; x++) {
 					if (x !== 0 || y !== 0) {
-						let checkX = this.x + (tileWidth) + (x * blockWidth),
-								checkY = this.y + (tileWidth) + (y * blockWidth);
-						blocks.push(levelBlocks.some(b => b.checkCollision(checkX, checkY)));
+						let
+							checkX = this.x + tileWidth + (x * blockWidth),
+							checkY = this.y + tileWidth + (y * blockWidth);
+						blocks.push(Block.current.some(b => b.checkCollision(checkX, checkY)));
 					}
 				}
 			}
@@ -206,10 +188,6 @@ export default class extends GameObject {
 			}
 		}
 
-		if (this.gem && this.tiles.bgType.some(t => t !== 6)) {
-			this.gem.edge = true;
-		}
-
 		this.tiles.fgType = this.tiles.bgType.map(t => {
 			switch(t) {
 				case 0: t = 11; break;
@@ -244,47 +222,60 @@ export default class extends GameObject {
 		
 	}
 
-	public break() {
-		this.delete();
-		this.isCave = true;
-		this.z -= 0.1;
-		
-		// Set Cave BG
-		this.tiles.bgSet = caveBg;
-		this.tiles.bgType = [0, 1, 2, 3];
-		let blocks = [];
-		for (let y = -1; y <= 1; y++) {
-			for (let x = -1; x <= 1; x++) {
-				if (x !== 0 || y !== 0) {
-					let checkX = this.x + (tileWidth) + (x * blockWidth),
-							checkY = this.y + (tileWidth) + (y * blockWidth);
-					blocks.push(levelBlocks.some(b => b.checkCollision(checkX, checkY)));
+	public hit(hitForce = -1) {
+		if (hitForce === -1) {
+			this.damage = this.maxDamage
+		} else {
+			this.damage += hitForce;
+		}
+
+		if (this.damage >= this.maxDamage) {
+			this.delete();
+			this.isCave = true;
+			this.z -= 0.1;
+			
+			// Set Cave BG
+			this.tiles.bgSet = caveBg;
+			this.tiles.bgType = [0, 1, 2, 3];
+			let blocks = [];
+			for (let y = -1; y <= 1; y++) {
+				for (let x = -1; x <= 1; x++) {
+					if (x !== 0 || y !== 0) {
+						let checkX = this.x + (tileWidth) + (x * blockWidth),
+								checkY = this.y + (tileWidth) + (y * blockWidth);
+						blocks.push(Block.current.some(b => b.checkCollision(checkX, checkY)));
+					}
 				}
 			}
-		}
-		this.tiles.x = [
-			this.x + (blocks[3] ? -16 : 8),
-			this.x + tileWidth + (blocks[4] ? 0 : -24),
-			this.x + (blocks[3] ? -16 : 8),
-			this.x + tileWidth + (blocks[4] ? 0 : -24),
-		];
-		this.tiles.y = [
-			this.y + (blocks[1] ? -16 : 8), 
-			this.y + (blocks[1] ? -16 : 8), 
-			this.y + tileWidth + (blocks[6] ? 0 : -24), 
-			this.y + tileWidth + (blocks[6] ? 0 : -24)
-		];
-		
-		// Change tiles of surrounding blocks
-		let dis = Math.pow(blockWidth * 1.5, 2);
-		levelBlocks.forEach(b => {
-			if (
-				b.inView &&
-				(Math.pow(b.x - this.x, 2) + Math.pow(b.y - this.y, 2) < dis)
-			) {
-				b.setTiles();
+			this.tiles.x = [
+				this.x + (blocks[3] ? -16 : 8),
+				this.x + tileWidth + (blocks[4] ? 0 : -24),
+				this.x + (blocks[3] ? -16 : 8),
+				this.x + tileWidth + (blocks[4] ? 0 : -24),
+			];
+			this.tiles.y = [
+				this.y + (blocks[1] ? -16 : 8), 
+				this.y + (blocks[1] ? -16 : 8), 
+				this.y + tileWidth + (blocks[6] ? 0 : -24), 
+				this.y + tileWidth + (blocks[6] ? 0 : -24)
+			];
+			
+			// Change tiles of surrounding blocks
+			let dis = Math.pow(blockWidth * 1.5, 2);
+			Block.current.forEach(b => {
+				if (
+					b.inView &&
+					(Math.pow(b.x - this.x, 2) + Math.pow(b.y - this.y, 2) < dis)
+				) {
+					b.setTiles();
+				}
+			});
+
+			// Throw gems
+			if (this.gems.length) {
+				this.gems.forEach(g => g.free());
 			}
-		});
+		}
 	}
 
 	public startDraw(ctx: CanvasRenderingContext2D) {
@@ -304,25 +295,14 @@ export default class extends GameObject {
 				this.tiles.fgSet.draw(ctx, this.x + tileWidth, this.y, this.tiles.fgType[1]);
 				this.tiles.fgSet.draw(ctx, this.x, this.y + tileWidth, this.tiles.fgType[2]);
 				this.tiles.fgSet.draw(ctx, this.x + tileWidth, this.y + tileWidth, this.tiles.fgType[3]);
-
-				if (!this.isCave && this.gem) {
-					ctx.save();
-						ctx.translate(this.gem.x, this.gem.y);
-						ctx.rotate(this.gem.ang);
-						gemsTile.draw(ctx, blockWidth / -4, blockWidth / -4, this.gem.type);
-					ctx.restore();
-				}
 			});
 		}
 	}
 
 	public delete() {
-		levelBlocks.splice(levelBlocks.indexOf(this), 1);
+		Block.current.splice(Block.current.indexOf(this), 1);
 		if (this.lightBlock) {
 			this.lightBlock.delete();
-		}
-		if (this.gem) {
-			this.gem.source.delete();
 		}
 	}
 }

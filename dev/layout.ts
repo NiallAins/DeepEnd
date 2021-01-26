@@ -1,5 +1,6 @@
-import { rand, gems } from 'main';
+import { rand } from 'main';
 import Block from 'Block';
+import Gem from 'Gem';
 
 // Layout Parameters
 const
@@ -26,8 +27,8 @@ export default function(
 	for (let x = caveSpacing / 4; x < width; x += caveSpacing) {
 		for (let y = -0.5; y < height; y += caveSpacing) {
       let caveR = maxCaveR - ((maxCaveR - minCaveR) * y / height),
-			    gem = Math.max(0, Math.min(gems.length - 1,
-            Math.floor(rand(-1, gemDepthVary) + ((gems.length - gemDepthVary + 1) * y / height))
+			    gem = Math.max(0, Math.min(Gem.types.length - 1,
+            Math.floor(rand(-1, gemDepthVary) + ((Gem.types.length - gemDepthVary + 1) * y / height))
           ));
 			caves.push({
 				x: (x + rand(maxCaveOffset, -maxCaveOffset)) * cellW,
@@ -76,7 +77,7 @@ export default function(
 				let r = rand(),
 						gem;
 				if (r < outOfPlaceGem) {
-					gem = rand(gems.length, 0, true);
+					gem = rand(Gem.types.length, 0, true);
 				} else if (r < nearCave.gemNum) {
 					gem = nearCave.gem;
 				} else {
