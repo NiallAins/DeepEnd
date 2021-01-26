@@ -2724,7 +2724,8 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 World.areas[name] = this;
                 this.view = new View();
                 this._zIndex = zIndex;
-            };
+            }
+            ;
             get zIndex() { return this._zIndex; }
             set zIndex(newVal) { this._zIndex = newVal; World.currentAreas.sort((a, b) => a.zIndex - b.zIndex); }
             addBackground(asset, isForeGround = false, zIndex = 0, parralax = 1, offset = 0, repeat = true, customName) { let bg = { name: customName || asset, img: Engine.getBackground(asset, true) || asset, parralax: typeof parralax === 'number' ? { x: parralax, y: parralax } : parralax, offset: typeof offset === 'number' ? { x: offset, y: offset } : offset, repeat: typeof repeat === 'boolean' ? { x: repeat, y: repeat } : repeat, z: zIndex }; if (isForeGround) {
@@ -3597,28 +3598,77 @@ define("Camera", ["require", "exports", "Bunas", "main"], function (require, exp
     }
     exports.default = default_2;
 });
-define("Fishes/PinkFish", ["require", "exports", "Bunas", "main", "Fish"], function (require, exports, Bunas_4, main_4, Fish_1) {
+define("Fishes/FishBase", ["require", "exports", "Bunas", "main", "Block"], function (require, exports, Bunas_4, main_4, Block_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    class PinkFish extends Fish_1.Fish {
+    class Fish extends Bunas_4.GameObject {
+        constructor(x, y, box) {
+            super(x, y, 1 + (Math.random() * 3), box);
+            this.speedSlow = 1.5;
+            this.speedFast = 4;
+            this.dx = this.speedSlow;
+            this.dy = 0;
+            this.turnTimer = 0;
+            this.turnTimerLimit = 20;
+            this.isLightNear = false;
+            this.isLightFar = false;
+            this.isTouch = false;
+            this.isHit = false;
+            this.isCamera = false;
+        }
+        step(dt) {
+            if (main_4.menu.open) {
+                return;
+            }
+            Fish.current.push(this);
+            this.turnTimer++;
+            this.turnTimer %= this.turnTimerLimit;
+            if (this.y < main_4.seaLevel + 50 || Block_3.default.current.some(b => b.checkCollision(this.x + this.dx, this.y + this.dy))) {
+                this.ang = this.ang + (Math.PI / 2);
+                this.dx = Math.cos(this.ang) * this.speedSlow;
+                this.dy = Math.sin(this.ang) * this.speedSlow;
+                this.turnTimer = 1;
+            }
+            this.x += this.dx * dt;
+            this.y += this.dy * dt;
+        }
+        endStep() {
+            this.isLightNear = false;
+            this.isLightFar = false;
+            this.isTouch = false;
+            this.isHit = false;
+            this.isCamera = false;
+        }
+        delete() {
+            Fish.current.splice(Fish.current.findIndex(f => f === this), 1);
+            super.delete();
+        }
+    }
+    Fish.current = [];
+    exports.Fish = Fish;
+});
+define("Fishes/PinkFish", ["require", "exports", "Bunas", "main", "Fishes/FishBase"], function (require, exports, Bunas_5, main_5, FishBase_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class PinkFish extends FishBase_1.Fish {
         constructor(x, y) {
             super(x, y, { width: 29, height: 17 });
             let r = Math.floor(Math.random() * 2);
-            this.sprite = Bunas_4.Engine.getSprite(r ? 'fish_1' : 'fish_2');
-            this.blocker = new Bunas_4.Light.Block(this.x, this.y, [
+            this.sprite = Bunas_5.Engine.getSprite(r ? 'fish_1' : 'fish_2');
+            this.blocker = new Bunas_5.Light.Block(this.x, this.y, [
                 { x: 12, y: 2 },
                 { x: 26, y: 5 },
                 { x: 26, y: 10 },
                 { x: 17, y: 14 },
                 { x: 3, y: 8 }
             ], this.draw.bind(this), false, r ? '#f8F4' : '#bbf4');
-            this.light = new Bunas_4.Light.Source(x, y, 50, '#f0f4', false);
+            this.light = new Bunas_5.Light.Source(x, y, 50, '#f0f4', false);
             this.light.bindPosition(this, 14, 8);
             this.blocker.bindPosition(this, 0, 0, 0, 14, 8);
         }
         step(dt) {
             if (this.turnTimer === 0) {
-                let gxDiff = this.x - main_4.guy.x, gyDiff = this.y - main_4.guy.y;
+                let gxDiff = this.x - main_5.guy.x, gyDiff = this.y - main_5.guy.y;
                 if ((gxDiff * gxDiff) + (gyDiff * gyDiff) < 15000) {
                     this.ang = Math.atan2(gyDiff, gxDiff);
                     this.dx = Math.cos(this.ang) * this.speedFast;
@@ -3636,23 +3686,23 @@ define("Fishes/PinkFish", ["require", "exports", "Bunas", "main", "Fish"], funct
             ctx.save();
             ctx.translate(this.x + 14, this.y + 8);
             ctx.rotate(this.ang);
-            main_4.camera.focusDraw(this, () => ctx.drawImage(this.sprite, -14, -8));
+            main_5.camera.focusDraw(this, () => ctx.drawImage(this.sprite, -14, -8));
             ctx.restore();
         }
     }
     exports.PinkFish = PinkFish;
 });
-define("Fishes/Pirhana", ["require", "exports", "Bunas", "main", "Fish"], function (require, exports, Bunas_5, main_5, Fish_2) {
+define("Fishes/Pirhana", ["require", "exports", "Bunas", "main", "Fishes/FishBase"], function (require, exports, Bunas_6, main_6, FishBase_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    class Pirhana extends Fish_2.Fish {
+    class Pirhana extends FishBase_2.Fish {
         constructor(x, y) {
             super(x, y, { width: 32, height: 22 });
             this.speedFast = 8;
             this.attackTimer = 0;
-            this.sprite = Bunas_5.Engine.getSprite('fish_piranha');
+            this.sprite = Bunas_6.Engine.getSprite('fish_piranha');
             this.speedFast += Math.random() * 0.5;
-            this.blocker = new Bunas_5.Light.Block(this.x, this.y, [
+            this.blocker = new Bunas_6.Light.Block(this.x, this.y, [
                 { x: 1, y: 0 },
                 { x: 12, y: 0 },
                 { x: 25, y: 0 },
@@ -3664,7 +3714,7 @@ define("Fishes/Pirhana", ["require", "exports", "Bunas", "main", "Fish"], functi
             this.blocker.bindPosition(this, 0, 0, 0, 17, 11);
         }
         step(dt) {
-            let gxDiff = main_5.guy.x - this.x, gyDiff = main_5.guy.y - this.y;
+            let gxDiff = main_6.guy.x - this.x, gyDiff = main_6.guy.y - this.y;
             if (this.attackTimer) {
                 this.ang = Math.atan2(gyDiff, gxDiff);
                 if (this.attackTimer > 40) {
@@ -3696,16 +3746,16 @@ define("Fishes/Pirhana", ["require", "exports", "Bunas", "main", "Fish"], functi
             ctx.save();
             ctx.translate(this.x + 17, this.y + 11);
             ctx.rotate(this.ang);
-            main_5.camera.focusDraw(this, () => ctx.drawImage(this.sprite, -17, -11));
+            main_6.camera.focusDraw(this, () => ctx.drawImage(this.sprite, -17, -11));
             ctx.restore();
         }
     }
     exports.Pirhana = Pirhana;
 });
-define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fish"], function (require, exports, Bunas_6, main_6, Fish_3) {
+define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fishes/FishBase"], function (require, exports, Bunas_7, main_7, FishBase_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    class Eel extends Fish_3.Fish {
+    class Eel extends FishBase_3.Fish {
         constructor(x, y, length) {
             super(x, y, 20);
             this.nodes = [];
@@ -3723,7 +3773,7 @@ define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fish"], function (
                     position: { x: x - (i * this.thickness * 2), y: y },
                     velocity: { x: 0, y: 0 },
                     force: { x: 0, y: 0 },
-                    block: new Bunas_6.Light.Block(x - (i * this.thickness * 2), y, { width: this.thickness * 2, height: this.thickness * 2 })
+                    block: new Bunas_7.Light.Block(x - (i * this.thickness * 2), y, { width: this.thickness * 2, height: this.thickness * 2 })
                 });
             }
         }
@@ -3736,7 +3786,7 @@ define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fish"], function (
                 this.wiggle = 0;
             }
             if (this.state === 1) {
-                this.ang = Math.atan2(main_6.guy.y - this.y + 32, main_6.guy.x - this.x + 32);
+                this.ang = Math.atan2(main_7.guy.y - this.y + 32, main_7.guy.x - this.x + 32);
             }
             let a = this.ang + (Math.sin(this.wiggle) * (this.state === 0 ? 1 : 0.5));
             this.x += Math.cos(a) * this.speed[this.state];
@@ -3788,61 +3838,17 @@ define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fish"], function (
             ctx.restore();
         }
     }
-    exports.Eel = Eel;
+    exports.default = Eel;
 });
-define("Fish", ["require", "exports", "Bunas", "main", "Block", "Fishes/PinkFish", "Fishes/Pirhana", "Fishes/Eel"], function (require, exports, Bunas_7, main_7, Block_3, PinkFish_1, Pirhana_1, Eel_1) {
+define("Fish", ["require", "exports", "Fishes/FishBase", "Fishes/PinkFish", "Fishes/Pirhana", "Fishes/Eel"], function (require, exports, FishBase_4, PinkFish_1, Pirhana_1, Eel_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Fish = FishBase_4.Fish;
     exports.PinkFish = PinkFish_1.PinkFish;
     exports.Pirhana = Pirhana_1.Pirhana;
     exports.Eel = Eel_1.Eel;
-    class Fish extends Bunas_7.GameObject {
-        constructor(x, y, box) {
-            super(x, y, 1 + (Math.random() * 3), box);
-            this.speedSlow = 1.5;
-            this.speedFast = 4;
-            this.dx = this.speedSlow;
-            this.dy = 0;
-            this.turnTimer = 0;
-            this.turnTimerLimit = 20;
-            this.isLightNear = false;
-            this.isLightFar = false;
-            this.isTouch = false;
-            this.isHit = false;
-            this.isCamera = false;
-        }
-        step(dt) {
-            if (main_7.menu.open) {
-                return;
-            }
-            Fish.current.push(this);
-            this.turnTimer++;
-            this.turnTimer %= this.turnTimerLimit;
-            if (this.y < main_7.seaLevel + 50 || Block_3.default.current.some(b => b.checkCollision(this.x + this.dx, this.y + this.dy))) {
-                this.ang = this.ang + (Math.PI / 2);
-                this.dx = Math.cos(this.ang) * this.speedSlow;
-                this.dy = Math.sin(this.ang) * this.speedSlow;
-                this.turnTimer = 1;
-            }
-            this.x += this.dx * dt;
-            this.y += this.dy * dt;
-        }
-        endStep() {
-            this.isLightNear = false;
-            this.isLightFar = false;
-            this.isTouch = false;
-            this.isHit = false;
-            this.isCamera = false;
-        }
-        delete() {
-            Fish.current.splice(Fish.current.findIndex(f => f === this), 1);
-            super.delete();
-        }
-    }
-    Fish.current = [];
-    exports.Fish = Fish;
 });
-define("Guy", ["require", "exports", "Bunas", "main", "Gem", "Block", "Fish"], function (require, exports, Bunas_8, main_8, Gem_3, Block_4, Fish_4) {
+define("Guy", ["require", "exports", "Bunas", "main", "Gem", "Block", "Fish"], function (require, exports, Bunas_8, main_8, Gem_3, Block_4, Fish_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class Guy extends Bunas_8.GameObject {
@@ -4083,7 +4089,7 @@ define("Guy", ["require", "exports", "Bunas", "main", "Gem", "Block", "Fish"], f
                             g.hit();
                         }
                     });
-                    Fish_4.Fish.current.forEach(f => {
+                    Fish_1.Fish.current.forEach(f => {
                         if (f.inView && f.checkCollision(this.x + colX, this.y + colY)) {
                             f.isHit = true;
                         }
@@ -4578,7 +4584,7 @@ define("Menu", ["require", "exports", "Bunas"], function (require, exports, Buna
     }
     exports.default = default_4;
 });
-define("main", ["require", "exports", "Bunas", "layout", "Camera", "Guy", "Fish", "HUD", "Menu"], function (require, exports, Bunas_11, layout_1, Camera_1, Guy_1, Fish_5, HUD_1, Menu_1) {
+define("main", ["require", "exports", "Bunas", "layout", "Camera", "Guy", "Fish", "HUD", "Menu"], function (require, exports, Bunas_11, layout_1, Camera_1, Guy_1, Fish_2, HUD_1, Menu_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.score = { money: 0 };
@@ -4646,9 +4652,9 @@ define("main", ["require", "exports", "Bunas", "layout", "Camera", "Guy", "Fish"
         for (let i = 0; i < 20; i++) {
         }
         for (let i = 0; i < 10; i++) {
-            new Fish_5.PinkFish(1000 + (Math.random() * 400), 5600 + (Math.random() * 500));
+            new Fish_2.PinkFish(1000 + (Math.random() * 400), 5600 + (Math.random() * 500));
         }
-        new Fish_5.Eel(600, 600, 140);
+        new Fish_2.Eel(600, 600, 140);
         Bunas_11.World.area.view.track(exports.guy, [
             (Bunas_11.Engine.cH / 2) - 28,
             (Bunas_11.Engine.cW / 2) + 28,

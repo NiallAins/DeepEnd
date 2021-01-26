@@ -1,6 +1,6 @@
 import { Engine, Light } from '../Bunas';
 import { guy, camera } from '../main';
-import { Fish } from '../Fish';
+import { Fish } from 'FishBase';
 
 export class PinkFish extends Fish {
   private light: Light.Source;

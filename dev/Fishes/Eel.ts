@@ -1,6 +1,6 @@
 import { Light } from '../Bunas';
 import { guy } from '../main';
-import { Fish } from '../Fish';
+import { Fish } from 'FishBase';
 
 export class Eel extends Fish {
   private nodes: {
