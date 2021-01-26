@@ -2724,8 +2724,7 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 World.areas[name] = this;
                 this.view = new View();
                 this._zIndex = zIndex;
-            }
-            ;
+            };
             get zIndex() { return this._zIndex; }
             set zIndex(newVal) { this._zIndex = newVal; World.currentAreas.sort((a, b) => a.zIndex - b.zIndex); }
             addBackground(asset, isForeGround = false, zIndex = 0, parralax = 1, offset = 0, repeat = true, customName) { let bg = { name: customName || asset, img: Engine.getBackground(asset, true) || asset, parralax: typeof parralax === 'number' ? { x: parralax, y: parralax } : parralax, offset: typeof offset === 'number' ? { x: offset, y: offset } : offset, repeat: typeof repeat === 'boolean' ? { x: repeat, y: repeat } : repeat, z: zIndex }; if (isForeGround) {
