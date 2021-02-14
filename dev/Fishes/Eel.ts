@@ -12,9 +12,9 @@ export class Eel extends Fish {
   private readonly elastic: number = 0.9;
   private readonly thickness: number = 8;
   private readonly fric: number = 0.1;
-  private wiggle: number = 1;
+  private wiggle: number = 0;
   public ang: number = 0;
-  private speed: number[] = [3, 8, 0, 4];
+  private speed: number[] = [1, 8, 0, 4];
   // states [neutral, chase, attack, flee]
   private state: number = 0;
 
@@ -32,9 +32,10 @@ export class Eel extends Fish {
         position: { x: x - (i * this.thickness * 2), y: y },
         velocity: { x: 0, y: 0 },
         force:    { x: 0, y: 0 },
-        block:    new Light.Block(x - (i * this.thickness * 2), y, {width: this.thickness * 2, height: this.thickness * 2})
+        block:    new Light.Block(0, 0, this.thickness, this.draw.bind(this), false, '#0008')
       });
     }
+    this.nodes.forEach(n => n.block.group = 1);
   }
 
   public step() {
@@ -85,8 +86,10 @@ export class Eel extends Fish {
         n.position.y += n.velocity.y;
         n.force = {x: 0, y: 0};
       }
-      n.block.x = n.position.x;
-      n.block.y = n.position.y;
+      if (n.block) {
+        n.block.x = n.position.x - this.thickness;
+        n.block.y = n.position.y - this.thickness;
+      }
     }
   }
 
@@ -96,8 +99,9 @@ export class Eel extends Fish {
         ctx.moveTo(this.nodes[0].position.x, this.nodes[0].position.y);
         let n = 1;
         for (; n < this.nodes.length - 2; n++) {
-          let xc = (this.nodes[n].position.x + this.nodes[n + 1].position.x) / 2,
-              yc = (this.nodes[n].position.y + this.nodes[n + 1].position.y) / 2;
+          let
+            xc = (this.nodes[n].position.x + this.nodes[n + 1].position.x) / 2,
+            yc = (this.nodes[n].position.y + this.nodes[n + 1].position.y) / 2;
           ctx.quadraticCurveTo(this.nodes[n].position.x, this.nodes[n].position.y, xc, yc);
         }
         ctx.quadraticCurveTo(
@@ -108,7 +112,7 @@ export class Eel extends Fish {
         );
         ctx.lineWidth = this.thickness * 2;
         ctx.lineCap = 'round';
-        ctx.strokeStyle = 'black';
+        ctx.strokeStyle = 'red';
       ctx.stroke();
       ctx.fillStyle = 'white';
       ctx.fillRect(this.x - 2, this.y - 2, 4, 4);

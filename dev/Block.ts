@@ -184,7 +184,7 @@ export default class Block extends GameObject {
 			if (this.lightBlock) {
 				this.lightBlock.mask = lightMask;
 			} else {
-				this.lightBlock = new Light.Block(this.x, this.y, lightMask, this.draw.bind(this), true);
+				//this.lightBlock = new Light.Block(this.x, this.y, lightMask, this.draw.bind(this), true);
 			}
 		}
 

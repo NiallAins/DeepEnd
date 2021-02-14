@@ -1843,7 +1843,7 @@ define("Bunas", ["require", "exports"], function (require, exports) {
         ;
         function initLoop() { _externalCallback(); loop(); }
         ;
-        function loop() { setTimeout(() => { let newT = +new Date(); dT = Math.min(Engine.maxDelta, (newT - currentT) / frameDur); currentT = newT; Engine.preStep(dT); World.step(dT); Engine.postStep(dT); Input.step(); ctx.clearRect(-1, -1, Engine.cW + 1, Engine.cH + 1); Engine.preDraw(ctx, dT); World.draw(ctx, dT); Debug.draw(ctx, dT); Input.drawCursor(ctx, dT); Engine.postDraw(ctx, dT); window.requestAnimationFrame(loop.bind(this)); }, frameDur - (+new Date()) + currentT); }
+        function loop() { setTimeout(() => { let newT = +new Date(); dT = Math.min(Engine.maxDelta, (newT - currentT) / frameDur); currentT = newT; Engine.preStep(dT); World.step(dT); Engine.postStep(dT); Input.step(); ctx.clearRect(-1, -1, Engine.cW + 2, Engine.cH + 2); Engine.preDraw(ctx, dT); World.draw(ctx, dT); Debug.draw(ctx, dT); Input.drawCursor(ctx, dT); Engine.postDraw(ctx, dT); window.requestAnimationFrame(loop.bind(this)); }, frameDur - (+new Date()) + currentT); }
         ;
     })(Engine = exports.Engine || (exports.Engine = {}));
     var Graphics;
@@ -2260,8 +2260,8 @@ define("Bunas", ["require", "exports"], function (require, exports) {
     })(Input = exports.Input || (exports.Input = {}));
     var Light;
     (function (Light) {
-        let can0, ctx0, can1, ctx1, can2, ctx2;
-        function lightEngineInit() { can0 = document.createElement('canvas'); can2 = document.createElement('canvas'); can1 = document.createElement('canvas'); can0.width = can1.width = can2.width = Engine.cW; can0.height = can1.height = can2.height = Engine.cH; ctx0 = can0.getContext('2d'); ctx1 = can1.getContext('2d'); ctx2 = can2.getContext('2d'); ctx0.imageSmoothingEnabled = false; ctx1.imageSmoothingEnabled = false; ctx2.imageSmoothingEnabled = false; }
+        let can0, ctx0, can1, ctx1, can2, ctx2, can3, ctx3;
+        function lightEngineInit() { can0 = document.createElement('canvas'); can1 = document.createElement('canvas'); can2 = document.createElement('canvas'); can3 = document.createElement('canvas'); can0.width = can1.width = can2.width = can3.width = Engine.cW; can0.height = can1.height = can2.height = can3.height = Engine.cH; ctx0 = can0.getContext('2d'); ctx1 = can1.getContext('2d'); ctx2 = can2.getContext('2d'); ctx3 = can3.getContext('2d'); ctx0.imageSmoothingEnabled = false; ctx1.imageSmoothingEnabled = false; ctx2.imageSmoothingEnabled = false; ctx3.imageSmoothingEnabled = false; }
         function angDiff(a0, a1) { let a = a0 - a1; a += (a > Math.PI) ? -2 * Math.PI : (a < -Math.PI) ? 2 * Math.PI : 0; return a; }
         ;
         function getAng(x, y) { return (6.2832 + Math.atan2(y, x)) % 6.2832; }
@@ -2299,7 +2299,7 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 if (typeof b.bound.angOffset === 'number') {
                     b.ang = b.bound.obj.ang + b.bound.angOffset;
                 }
-            } }); ctx1.clearRect(0, 0, can1.width, can1.height); ctx2.save(); ctx2.scale(this.area.view.z, this.area.view.z); ctx2.translate(-this.area.view.x, -this.area.view.y); this.sources.filter(s => (s.active && s.x + s.rad > this.area.view.x && s.x - s.rad < this.area.view.x + this.area.view.width && s.y + s.rad > this.area.view.y && s.y - s.rad < this.area.view.y + this.area.view.height)).forEach(source => { if (!source.castShadows) {
+            } }); ctx1.clearRect(0, 0, can1.width, can1.height); ctx2.save(); ctx2.scale(this.area.view.z, this.area.view.z); ctx2.translate(-this.area.view.x, -this.area.view.y); ctx3.save(); ctx3.scale(this.area.view.z, this.area.view.z); ctx3.translate(-this.area.view.x, -this.area.view.y); this.sources.filter(s => (s.active && s.x + s.rad > this.area.view.x && s.x - s.rad < this.area.view.x + this.area.view.width && s.y + s.rad > this.area.view.y && s.y - s.rad < this.area.view.y + this.area.view.height)).forEach(source => { if (!source.castShadows) {
                 ctx1.save();
                 ctx1.scale(this.area.view.z, this.area.view.z);
                 ctx1.translate(source.x - this.area.view.x, source.y - this.area.view.y);
@@ -2332,7 +2332,8 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                     ctx2.globalCompositeOperation = 'source-over';
                     ctx2.drawImage(source.mask, -source.rad, -source.rad);
                     ctx2.restore();
-                    nearBlocks.map(b => b[0]).forEach(block => { let corners = []; if (block.mask) {
+                    let group = [];
+                    nearBlocks.map(b => b[0]).sort((a, b) => a.group - b.group).forEach((block, i, blockArr) => { let corners = []; if (block.mask) {
                         let poly = block.mask.map(m => { return { x: m.x + block.x - source.x, y: m.y + block.y - source.y }; }), diff = 3.1416 - getAng(block.x + block.bound.xCenter - source.x, block.y + block.bound.yCenter - source.y), sAng = Math.sin(diff), cAng = Math.cos(diff), max = 3.1416, min = 3.1416, maxP, minP;
                         poly.forEach(p => { let a = getAng((p.x * cAng) - (p.y * sAng), (p.x * sAng) + (p.y * cAng)); if (a > max) {
                             max = a;
@@ -2345,30 +2346,68 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                         corners.push({ x: minP.x + source.x, y: minP.y + source.y }, { x: maxP.x + source.x, y: maxP.y + source.y });
                     }
                     else {
-                        let angDiff = getAng(block.x - source.x, block.y - source.y);
-                        corners.push({ x: block.x + (Math.cos(angDiff - (Math.PI / 2)) * block.clipRad), y: block.y + (Math.sin(angDiff - (Math.PI / 2)) * block.clipRad) }, { x: block.x + (Math.cos(angDiff + (Math.PI / 2)) * block.clipRad), y: block.y + (Math.sin(angDiff + (Math.PI / 2)) * block.clipRad) });
-                    } let ang = Math.atan2(corners[1].y - source.y, corners[1].x - source.x); corners.push({ x: source.x + (source.rad * Math.cos(ang)), y: source.y + (source.rad * Math.sin(ang)) }); ang = Math.atan2(corners[0].y - source.y, corners[0].x - source.x); corners.push({ x: source.x + source.rad * Math.cos(ang), y: source.y + source.rad * Math.sin(ang) }); ctx2.beginPath(); ctx2.moveTo(corners[0].x, corners[0].y); ctx2.lineTo(corners[1].x, corners[1].y); ctx2.lineTo(corners[2].x, corners[2].y); ctx2.lineTo(corners[3].x, corners[3].y); let ang0 = Math.atan2(corners[2].y - source.y, corners[2].x - source.x); let ang1 = Math.atan2(corners[3].y - source.y, corners[3].x - source.x); ctx2.arc(source.x, source.y, source.rad, ang0, ang1, angDiff(ang0, ang1) > 0); ctx2.lineTo(corners[0].x, corners[0].y); ctx2.fillStyle = block.translucentColor; ctx2.globalCompositeOperation = 'destination-out'; ctx2.fill(); if (block.translucentColor === '#000') {
-                        block.spriteMask.draw(ctx2);
-                    }
-                    else {
-                        block.spriteMask.draw();
-                        block.spriteMask.ctx.save();
-                        block.spriteMask.ctx.translate(-block.x, -block.y);
-                        block.spriteMask.ctx.beginPath();
-                        block.spriteMask.ctx.moveTo(corners[0].x, corners[0].y);
-                        block.spriteMask.ctx.lineTo(corners[1].x, corners[1].y);
-                        block.spriteMask.ctx.lineTo(corners[2].x, corners[2].y);
-                        block.spriteMask.ctx.lineTo(corners[3].x, corners[3].y);
-                        block.spriteMask.ctx.arc(source.x, source.y, source.rad, ang0, ang1, angDiff(ang0, ang1) > 0);
-                        block.spriteMask.ctx.lineTo(corners[0].x, corners[0].y);
-                        block.spriteMask.ctx.fillStyle = '#000';
-                        block.spriteMask.ctx.globalCompositeOperation = 'destination-out';
-                        block.spriteMask.ctx.fill();
-                        block.spriteMask.ctx.restore();
-                        ctx2.drawImage(block.spriteMask.can, block.x - (block.clipRad / 4), block.y - (block.clipRad / 4));
-                        ctx2.globalCompositeOperation = 'source-atop';
+                        let angDiff = getAng(block.x + block.bound.xCenter - source.x, block.y - block.bound.yCenter - source.y);
+                        corners.push({ x: block.x + block.bound.xCenter + (Math.cos(angDiff - (Math.PI / 2)) * block.clipRad), y: block.y + block.bound.yCenter + (Math.sin(angDiff - (Math.PI / 2)) * block.clipRad) }, { x: block.x + block.bound.xCenter + (Math.cos(angDiff + (Math.PI / 2)) * block.clipRad), y: block.y + block.bound.yCenter + (Math.sin(angDiff + (Math.PI / 2)) * block.clipRad) });
+                    } let ang = Math.atan2(corners[1].y - source.y, corners[1].x - source.x); corners.push({ x: source.x + (source.rad * Math.cos(ang)), y: source.y + (source.rad * Math.sin(ang)) }); ang = Math.atan2(corners[0].y - source.y, corners[0].x - source.x); corners.push({ x: source.x + source.rad * Math.cos(ang), y: source.y + source.rad * Math.sin(ang) }); if (block.group === -1 || i === 0 || blockArr[i - 1].group !== block.group) {
+                        ctx2.beginPath();
+                        group = [];
+                    } ctx2.moveTo(corners[0].x, corners[0].y); ctx2.lineTo(corners[1].x, corners[1].y); ctx2.lineTo(corners[2].x, corners[2].y); ctx2.lineTo(corners[3].x, corners[3].y); group.push(corners[0], corners[1], corners[2], corners[3], corners[0]); let ang0 = Math.atan2(corners[2].y - source.y, corners[2].x - source.x); let ang1 = Math.atan2(corners[3].y - source.y, corners[3].x - source.x); ctx2.arc(source.x, source.y, source.rad, ang0, ang1, angDiff(ang0, ang1) > 0); ctx2.lineTo(corners[0].x, corners[0].y); if (block.group === -1 || i === blockArr.length - 1 || blockArr[i + 1].group !== block.group) {
+                        ctx2.fillStyle = block.translucentColor;
+                        ctx2.globalCompositeOperation = 'destination-out';
                         ctx2.fill();
-                        ctx2.drawImage(block.spriteMask.can, block.x - (block.clipRad / 4), block.y - (block.clipRad / 4));
+                        let b = { block: block, corners: corners, ang0: ang0, ang1: ang1 };
+                        let mask = b.block.spriteMask;
+                        if (b.block.translucentColor === '#000') {
+                            mask.draw(ctx2);
+                        }
+                        if (b.block.group === -1) {
+                            mask.draw();
+                            mask.ctx.save();
+                            mask.ctx.translate(-b.block.x, -b.block.y);
+                            mask.ctx.beginPath();
+                            mask.ctx.moveTo(b.corners[0].x, b.corners[0].y);
+                            mask.ctx.lineTo(b.corners[1].x, b.corners[1].y);
+                            mask.ctx.lineTo(b.corners[2].x, b.corners[2].y);
+                            mask.ctx.lineTo(b.corners[3].x, b.corners[3].y);
+                            mask.ctx.arc(source.x, source.y, source.rad, b.ang0, b.ang1, angDiff(b.ang0, b.ang1) > 0);
+                            mask.ctx.lineTo(b.corners[0].x, b.corners[0].y);
+                            mask.ctx.fillStyle = '#000';
+                            mask.ctx.globalCompositeOperation = 'destination-out';
+                            mask.ctx.fill();
+                            mask.ctx.restore();
+                            ctx2.drawImage(mask.can, b.block.x - (b.block.clipRad / 4), b.block.y - (b.block.clipRad / 4));
+                            ctx2.globalCompositeOperation = 'source-atop';
+                            ctx2.fill();
+                            ctx2.drawImage(mask.can, b.block.x - (b.block.clipRad / 4), b.block.y - (b.block.clipRad / 4));
+                        }
+                        else {
+                            ctx3.save();
+                            ctx3.setTransform(1, 0, 0, 1, 0, 0);
+                            ctx3.clearRect(0, 0, can3.width, can3.height);
+                            ctx3.restore();
+                            ctx3.globalCompositeOperation = 'source-over';
+                            mask.mask(ctx3);
+                            ctx3.beginPath();
+                            group.forEach((p, i) => { if (i % 5) {
+                                ctx3.lineTo(p.x, p.y);
+                            }
+                            else {
+                                ctx3.moveTo(p.x, p.y);
+                            } });
+                            ctx3.globalCompositeOperation = 'destination-out';
+                            ctx3.fillStyle = 'green';
+                            ctx3.fill();
+                            ctx3.globalCompositeOperation = 'source-in';
+                            ctx3.save();
+                            ctx3.setTransform(1, 0, 0, 1, 0, 0);
+                            ctx3.fillStyle = block.translucentColor;
+                            ctx3.fillRect(0, 0, can3.width, can3.height);
+                            ctx3.restore();
+                            ctx2.save();
+                            ctx2.setTransform(1, 0, 0, 1, 0, 0);
+                            ctx2.drawImage(can3, 0, 0);
+                            ctx2.restore();
+                        }
                     } });
                     ctx1.globalCompositeOperation = 'lighter';
                     ctx1.drawImage(can2, 0, 0);
@@ -2377,7 +2416,7 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                     ctx2.clearRect(0, 0, can2.width, can2.height);
                     ctx2.restore();
                 }
-            } }); ctx2.restore(); ctx0.globalCompositeOperation = 'source-over'; ctx0.clearRect(0, 0, can0.width, can0.height); ctx0.fillRect(0, 0, can0.width, can0.height); ctx0.globalCompositeOperation = 'destination-out'; ctx0.drawImage(can1, 0, 0); ctx.globalCompositeOperation = 'source-over'; ctx.drawImage(can0, 0, 0); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(can1, 0, 0); ctx.globalCompositeOperation = 'source-over'; }
+            } }); ctx2.restore(); ctx3.restore(); ctx0.globalCompositeOperation = 'source-over'; ctx0.clearRect(0, 0, can0.width, can0.height); ctx0.fillRect(0, 0, can0.width, can0.height); ctx0.globalCompositeOperation = 'destination-out'; ctx0.drawImage(can1, 0, 0); ctx.globalCompositeOperation = 'source-over'; ctx.drawImage(can0, 0, 0); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(can1, 0, 0); ctx.globalCompositeOperation = 'source-over'; }
         }
         Light.LightArea = LightArea;
         class Source extends Bindable {
@@ -2471,6 +2510,7 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                 this.x = x;
                 this.y = y;
                 this.blockLightInside = blockLightInside;
+                this.group = -1;
                 this.spriteMask = { draw: null, mask: null };
                 this._ang = 0;
                 if (!World.area.light) {
@@ -2518,7 +2558,9 @@ define("Bunas", ["require", "exports"], function (require, exports) {
                     } sCtx.closePath(); sCtx.fill(); sCtx.restore(); };
                 }
                 else {
-                    this.spriteMask.draw = () => { sCtx.save(); sCtx.clearRect(-this.clipRad / 4, -this.clipRad / 4, sCan.width, sCan.height); sCtx.translate(-this.x, -this.y); this.spriteMask.mask(sCtx); sCtx.restore(); sCtx.globalCompositeOperation = 'source-in'; sCtx.fillRect(-this.clipRad / 4, -this.clipRad / 4, sCan.width, sCan.height); sCtx.globalCompositeOperation = 'source-over'; };
+                    this.spriteMask.draw = (opaque) => { if (opaque) {
+                        sCtx.fillStyle = '#000';
+                    } sCtx.save(); sCtx.clearRect(-this.clipRad / 4, -this.clipRad / 4, sCan.width, sCan.height); sCtx.translate(-this.x, -this.y); this.spriteMask.mask(sCtx); sCtx.restore(); sCtx.globalCompositeOperation = 'source-in'; sCtx.fillRect(-this.clipRad / 4, -this.clipRad / 4, sCan.width, sCan.height); sCtx.globalCompositeOperation = 'source-over'; };
                 }
             } }
             get translucentColor() { return this._transColor; }
@@ -3190,7 +3232,6 @@ define("Block", ["require", "exports", "Bunas", "main", "Gem"], function (requir
                     this.lightBlock.mask = lightMask;
                 }
                 else {
-                    this.lightBlock = new Bunas_2.Light.Block(this.x, this.y, lightMask, this.draw.bind(this), true);
                 }
             }
             this.tiles.fgType = this.tiles.bgType.map(t => {
@@ -3762,9 +3803,9 @@ define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fishes/FishBase"],
             this.elastic = 0.9;
             this.thickness = 8;
             this.fric = 0.1;
-            this.wiggle = 1;
+            this.wiggle = 0;
             this.ang = 0;
-            this.speed = [3, 8, 0, 4];
+            this.speed = [1, 8, 0, 4];
             this.state = 0;
             this.nodes = [];
             let nodeNum = length / (this.thickness * 2);
@@ -3773,9 +3814,10 @@ define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fishes/FishBase"],
                     position: { x: x - (i * this.thickness * 2), y: y },
                     velocity: { x: 0, y: 0 },
                     force: { x: 0, y: 0 },
-                    block: new Bunas_7.Light.Block(x - (i * this.thickness * 2), y, { width: this.thickness * 2, height: this.thickness * 2 })
+                    block: new Bunas_7.Light.Block(0, 0, this.thickness, this.draw.bind(this), false, '#0008')
                 });
             }
+            this.nodes.forEach(n => n.block.group = 1);
         }
         step() {
             this.wiggle += this.state === 0 ? 0.1 : 0.4;
@@ -3815,8 +3857,10 @@ define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fishes/FishBase"],
                     n.position.y += n.velocity.y;
                     n.force = { x: 0, y: 0 };
                 }
-                n.block.x = n.position.x;
-                n.block.y = n.position.y;
+                if (n.block) {
+                    n.block.x = n.position.x - this.thickness;
+                    n.block.y = n.position.y - this.thickness;
+                }
             }
         }
         draw(ctx) {
@@ -3831,7 +3875,7 @@ define("Fishes/Eel", ["require", "exports", "Bunas", "main", "Fishes/FishBase"],
             ctx.quadraticCurveTo(this.nodes[n].position.x, this.nodes[n].position.y, this.nodes[n + 1].position.x, this.nodes[n + 1].position.y);
             ctx.lineWidth = this.thickness * 2;
             ctx.lineCap = 'round';
-            ctx.strokeStyle = 'black';
+            ctx.strokeStyle = 'red';
             ctx.stroke();
             ctx.fillStyle = 'white';
             ctx.fillRect(this.x - 2, this.y - 2, 4, 4);
@@ -4648,13 +4692,13 @@ define("main", ["require", "exports", "Bunas", "layout", "Camera", "Guy", "Fish"
         Bunas_11.World.area.toggleLight();
         const gridWidth = 60, gridHeight = 100, gridCellWidth = 96;
         layout_1.default(gridWidth, gridHeight, gridCellWidth, Math.ceil(exports.seaLevel / gridCellWidth) + 2);
-        exports.guy = new Guy_1.default(0, 0);
+        exports.guy = new Guy_1.default(1000, 3200);
         for (let i = 0; i < 20; i++) {
         }
-        for (let i = 0; i < 10; i++) {
-            new Fish_2.PinkFish(1000 + (Math.random() * 400), 5600 + (Math.random() * 500));
+        for (let i = 0; i < 1; i++) {
+            new Fish_2.PinkFish(1000 + (Math.random() * 400), 3200 + (Math.random() * 500));
         }
-        new Fish_2.Eel(600, 600, 140);
+        new Fish_2.Eel(1000, 3200, 140);
         Bunas_11.World.area.view.track(exports.guy, [
             (Bunas_11.Engine.cH / 2) - 28,
             (Bunas_11.Engine.cW / 2) + 28,
@@ -4675,13 +4719,21 @@ define("main", ["require", "exports", "Bunas", "layout", "Camera", "Guy", "Fish"
         exports.HUD.step(dt);
         exports.menu.step();
     };
-    Bunas_11.Engine.preDraw = function (ctx) {
-        let depth = Math.max(Math.min(1, (exports.guy.y - exports.seaLevel) / 4000), 0);
-        Bunas_11.World.area.light.bgLight = 'rgba(25, 60, 100, ' + (1 - Math.pow(1 - depth, 3)) + ')';
-    };
     Bunas_11.Engine.postDraw = function (ctx, dt) {
         exports.camera.draw(ctx);
         exports.HUD.draw(ctx);
+        if (exports.guy.y > exports.seaLevel) {
+            let depth = 0.15 + Math.max(Math.min(0.85, (exports.guy.y - exports.seaLevel) / 4000), 0);
+            Bunas_11.World.area.light.bgLight = 'rgba(25, 60, 100, ' + (1 - Math.pow(1 - depth, 3)) + ')';
+        }
+        else {
+            Bunas_11.World.area.light.bgLight = '#0000';
+            ctx.save();
+            let depth = Math.max(Math.min(1, (exports.seaLevel - 20 - exports.guy.y) / (exports.seaLevel + 20), 0));
+            ctx.fillStyle = 'rgba(25, 60, 100, ' + (1 - Math.pow(1 - depth, 3)) + ')';
+            ctx.fillRect(0, exports.seaLevel - exports.guy.area.view.y, Bunas_11.Engine.cW, Bunas_11.Engine.cH);
+            ctx.restore();
+        }
     };
     class Dingy extends Bunas_11.GameObject {
         constructor() {
